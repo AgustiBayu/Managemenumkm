@@ -9,17 +9,19 @@ func ToUserResponse(user *domain.User) *domain.UserResponse {
 	}
 
 	return &domain.UserResponse{
-		ID:                 user.ID,
-		FName:              user.FName,
-		LName:              user.LName,
-		Email:              user.Email,
-		Alamat:             user.Alamat,
-		Thumbnail:          user.Thumbnail,
-		Number:             user.Number,
-		Role:               user.Role,
-		Toko:               tokoResponse,
-		SubscriptionStatus: user.SubscriptionStatus,
-		SubscriptionExpiry: FormatDate(user.SubscriptionExpiry),
+		ID:                     user.ID,
+		FName:                  user.FName,
+		LName:                  user.LName,
+		Email:                  user.Email,
+		Alamat:                 user.Alamat,
+		Thumbnail:              user.Thumbnail,
+		Number:                 user.Number,
+		Role:                   user.Role,
+		Toko:                   tokoResponse,
+		SubscriptionStatus:     user.SubscriptionStatus,
+		SubscriptionExpiry:     FormatDate(user.SubscriptionExpiry),
+		CreatedAt:              user.CreatedAt,
+		SubscriptionExpiryDate: user.SubscriptionExpiry,
 	}
 }
 

@@ -55,17 +55,19 @@ type UserCreateRequest struct {
 }
 
 type UserResponse struct {
-	ID                 uint   `json:"id"`
-	FName              string `json:"first_name"`
-	LName              string `json:"last_name"`
-	Email              string `json:"email"`
-	Alamat             string `json:"alamat"`
-	Thumbnail          string `json:"thumbnail"`
-	Number             string `json:"number"`
-	Role               string `json:"role"`
-	Toko               *TokoResponse `json:"toko"`
-	SubscriptionStatus string `json:"subscription_status"`
-	SubscriptionExpiry string `json:"subscription_expiry"`
+	ID                     uint          `json:"id"`
+	FName                  string        `json:"first_name"`
+	LName                  string        `json:"last_name"`
+	Email                  string        `json:"email"`
+	Alamat                 string        `json:"alamat"`
+	Thumbnail              string        `json:"thumbnail"`
+	Number                 string        `json:"number"`
+	Role                   string        `json:"role"`
+	Toko                   *TokoResponse `json:"toko"`
+	SubscriptionStatus     string        `json:"subscription_status"`
+	SubscriptionExpiry     string        `json:"subscription_expiry"`
+	CreatedAt              time.Time     `json:"created_at"`
+	SubscriptionExpiryDate time.Time     `json:"-"`
 }
 
 type LoginRequest struct {

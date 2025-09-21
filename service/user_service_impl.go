@@ -91,6 +91,14 @@ func (u *UserServiceImpl) FindById(ctx context.Context, userID int) (*domain.Use
 	}
 	return helper.ToUserResponse(user), nil
 }
+
+func (u *UserServiceImpl) FindByEmail(ctx context.Context, email string) (*domain.UserResponse, error) {
+	user, err := u.UserRepository.FindByEmail(email)
+	if err != nil {
+		return nil, exception.NotFound("email user not exists")
+	}
+	return helper.ToUserResponse(user), nil
+}
 func (u *UserServiceImpl) Update(ctx context.Context, req *domain.UserUpdateRequest, file multipart.File, handler *multipart.FileHeader) error {
 	if err := u.Validate.Struct(req); err != nil {
 		return exception.BadRequest("field not valid")

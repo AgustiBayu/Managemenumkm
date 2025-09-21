@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -152,7 +153,56 @@ func (u *UserControllerImpl) ShowLoginForm(w http.ResponseWriter, r *http.Reques
 }
 
 func (u *UserControllerImpl) ShowProfile(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	helper.RenderSingleTemplate(w, "template/profile/profile.html", nil)
+	cookie, err := r.Cookie("token")
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	tokenString := cookie.Value
+	claims, err := helper.ValidateJWT(tokenString)
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	user, err := u.UserService.FindByEmail(context.Background(), claims.Email)
+	if err != nil {
+		// Handle error, maybe redirect to login or show an error page
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	now := time.Now()
+	totalDuration := user.SubscriptionExpiryDate.Sub(user.CreatedAt)
+	remainingDuration := user.SubscriptionExpiryDate.Sub(now)
+
+	progressPercent := 0.0
+	if totalDuration > 0 {
+		progressPercent = (float64(remainingDuration) / float64(totalDuration)) * 100
+	}
+
+	if progressPercent < 0 {
+		progressPercent = 0
+	}
+	if progressPercent > 100 {
+		progressPercent = 100
+	}
+	progressColor := "bg-primary"
+	if progressPercent > 80 {
+		progressColor = "bg-danger"
+	} else if progressPercent > 50 {
+		progressColor = "bg-warning"
+	}
+
+	data := map[string]interface{}{
+		"User": user,
+		"Progress": map[string]interface{}{
+			"Percent": int(progressPercent),
+			"Color":   progressColor,
+		},
+	}
+	helper.RenderSingleTemplate(w, "template/profile/profile.html", data)
 }
 
 func (u *UserControllerImpl) Login(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
