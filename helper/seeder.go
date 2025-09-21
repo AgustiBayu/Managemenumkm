@@ -20,9 +20,9 @@ func SeedUsers(db *gorm.DB) {
 
 	users := []domain.User{
 		{FName: "Agusti", LName: "Bayu Samudro", Email: "agustibayusamudro27@gmail.com", Password: string(hashedPassword), Alamat: "jln. Haji Ahmad Yani RT.RW 004.006 Banyuwangi",
-			Thumbnail: "", Role: "admin"},
+			Thumbnail: "", Number: "081330654123", Role: "admin"},
 		{FName: "Reka", LName: "Nanda Putri", Email: "rekananputri@gmail.com", Password: string(hashedPassword), Alamat: "jln. Setya Budi RT.RW 005.006 Banyuwangi",
-			Thumbnail: "", Role: "cashier"},
+			Thumbnail: "", Number: "081330595025", Role: "cashier"},
 	}
 
 	for _, user := range users {
