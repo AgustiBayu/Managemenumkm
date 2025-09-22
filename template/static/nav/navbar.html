@@ -1,7 +1,7 @@
 {{ define "navbar" }}
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Managemen UMKM</a>
+        <a class="navbar-brand" href="/dashboard">Managemen UMKM</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -15,14 +15,13 @@
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-grid-fill me-2"></i> Lainnya
+                        <i class="bi bi-grid-fill me-2"></i> Keuangan
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="/toko">Toko</a></li>
-                        <li><a class="dropdown-item" href="#">Action</a></li>
-                        <li><a class="dropdown-item" href="#">Another action</a></li>
+                        <li><a class="dropdown-item" href="#">Kategori</a></li>
+                        <li><a class="dropdown-item" href="#">Buku Besar</a></li>                        
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#">Something else here</a></li>
+                        <li><a class="dropdown-item" href="#">Laporan</a></li>
                     </ul>
                 </li>
             </ul>
@@ -41,11 +40,19 @@
                         <strong>AGUSTI</strong>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                        <li><a class="dropdown-item" href="#">New project...</a></li>
-                        <li><a class="dropdown-item" href="#">Settings</a></li>
                         <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                        <li><a class="dropdown-item" href="#">Sign out</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="../auth/login.html">Sign out</a></li>
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#">
+                                <i class="bi bi-gear-fill me-2"></i>Setting
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><h6 class="dropdown-header">Manage</h6></li>
+                                <li><a class="dropdown-item" href="/toko">Toko</a></li>
+                                <li><a class="dropdown-item" href="/user">User</a></li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
             </div>
