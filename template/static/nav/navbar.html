@@ -10,8 +10,16 @@
                 <li class="nav-item">
                     <a class="nav-link active d-flex align-items-center" aria-current="page" href="#"><i class="bi bi-house-door-fill me-2"></i>Pos</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link d-flex align-items-center" href="#"><i class="bi bi-tag-fill me-2"></i>Kategori</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-tag-fill me-2"></i> Produk
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#">Kategori</a></li>
+                        <li><a class="dropdown-item" href="#">Produk</a></li>                        
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#">Detail Transaksi</a></li>
+                    </ul>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -41,7 +49,7 @@
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
                         <li><a class="dropdown-item" href="/profile">Profile</a></li>
-                        <li><a class="dropdown-item" href="#">Sign out</a></li>
+                        <li><a class="dropdown-item" href="/logout">Sign out</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-submenu">
                             <a class="dropdown-item dropdown-toggle" href="#">

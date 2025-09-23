@@ -26,16 +26,20 @@ func InitJWT() {
 var jwtKey []byte
 
 type Claims struct {
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	UserID uint   `json:"user_id"`
+	TokoID uint   `json:"toko_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func GenerateJWT(email, role string) (string, error) {
+func GenerateJWT(userID, tokoID uint, email, role string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		Email: email,
-		Role:  role,
+		UserID: userID,
+		TokoID: tokoID,
+		Email:  email,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},

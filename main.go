@@ -18,7 +18,7 @@ func main() {
 	helper.InitJWT()
 	db := app.DB()
 	db.AutoMigrate(&domain.User{}, &domain.Toko{})
-	helper.SeedUsers(db)
+	helper.DBSeed(db)
 	validate := validator.New()
 
 	// Repositories

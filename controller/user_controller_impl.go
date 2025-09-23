@@ -34,7 +34,7 @@ func (u *UserControllerImpl) Create(w http.ResponseWriter, r *http.Request, para
 		subscriptionStatus := r.FormValue("subscription_status")
 		subscriptionExpiry := r.FormValue("subscription_expiry")
 		req := &domain.UserCreateRequest{FName: fname, LName: lname, Email: email, Password: password, Alamat: alamat, Number: number,
-			Role: role, TokoID: uint(tokoID), SubscriptionStatus: subscriptionStatus, SubscriptionExpiry: subscriptionExpiry}
+			Role: domain.Role(role), TokoID: uint(tokoID), SubscriptionStatus: subscriptionStatus, SubscriptionExpiry: subscriptionExpiry}
 
 		if err := u.UserService.Create(context.Background(), req); err != nil {
 			http.Error(w, "Gagal menyimpan data: "+err.Error(), http.StatusInternalServerError)
@@ -110,7 +110,7 @@ func (u *UserControllerImpl) Update(w http.ResponseWriter, r *http.Request, para
 			Password:           password, // Add password to request
 			Alamat:             alamat,
 			Number:             number,
-			Role:               role,
+			Role:               domain.Role(role),
 			TokoID:             uint(tokoID),
 			SubscriptionStatus: subscriptionStatus,
 			SubscriptionExpiry: subscriptionExpiry,
@@ -229,6 +229,18 @@ func (u *UserControllerImpl) Login(w http.ResponseWriter, r *http.Request, param
 	})
 
 	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+}
+
+func (u *UserControllerImpl) Logout(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Expires:  time.Unix(0, 0), // Mengatur waktu kedaluwarsa
+	})
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (u *UserControllerImpl) Dashboard(w http.ResponseWriter, r *http.Request, params httprouter.Params) {

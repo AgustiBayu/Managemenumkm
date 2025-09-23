@@ -4,8 +4,11 @@ import (
 	"Managemenumkm/domain"
 	"Managemenumkm/exception"
 	"Managemenumkm/helper"
+	"Managemenumkm/middleware"
 	"Managemenumkm/repository"
+
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
@@ -36,7 +39,7 @@ func (u *UserServiceImpl) Login(req *domain.LoginRequest) (string, error) {
 	if err != nil {
 		return "", exception.InternalServerError("invalid email or password")
 	}
-	token, err := helper.GenerateJWT(user.Email, user.Role)
+	token, err := helper.GenerateJWT(user.ID, user.TokoID, user.Email, string(user.Role))
 	if err != nil {
 		return "", err
 	}
@@ -48,6 +51,35 @@ func (u *UserServiceImpl) Create(ctx context.Context, req *domain.UserCreateRequ
 	if err := u.Validate.Struct(req); err != nil {
 		return exception.BadRequest("field not valid")
 	}
+
+	// --- RBAC Logic ---
+	claims, ok := ctx.Value(middleware.ClaimsKey).(*helper.Claims)
+	if !ok {
+		return exception.InternalServerError("invalid token claims")
+	}
+
+	if domain.Role(claims.Role) == domain.RoleAdmin {
+		// Admins can only create cashiers.
+		if req.Role != domain.RoleCashier {
+			return exception.Forbidden("admins can only create cashier users")
+		}
+
+		// Admins can only create a cashier for their own store.
+		if req.TokoID != claims.TokoID {
+			return exception.Forbidden("admins can only create users for their own store")
+		}
+
+		// Admins can only create one cashier per store.
+		count, err := u.UserRepository.CountByTokoIDAndRole(ctx, claims.TokoID, domain.RoleCashier)
+		if err != nil {
+			return exception.InternalServerError("failed to verify cashier count")
+		}
+		if count > 0 {
+			return exception.Forbidden(fmt.Sprintf("store with ID %d already has a cashier", claims.TokoID))
+		}
+	}
+	// --- End RBAC Logic ---
+
 	EXP, err := helper.ParseDate(req.SubscriptionExpiry)
 	if err != nil {
 		return exception.BadRequest("invalid date format, use yyyy-mm-dd or dd-mm-yyyy")

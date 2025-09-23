@@ -15,7 +15,7 @@ type User struct {
 	Alamat             string
 	Thumbnail          string
 	Number             string
-	Role               string `gorm:"default:cashier"`
+	Role               Role `gorm:"default:cashier"`
 	TokoID             uint
 	Toko               Toko `gorm:"foreignKey:TokoID"`
 	SubscriptionStatus string
@@ -34,7 +34,7 @@ type UserUpdateRequest struct {
 	Alamat             string `json:"alamat" validate:"required"`
 	Thumbnail          string `json:"thumbnail"`
 	Number             string `json:"number" validate:"required"`
-	Role               string `json:"role" validate:"required"`
+	Role               Role   `json:"role" validate:"required"`
 	TokoID             uint   `json:"toko_id" validate:"required"`
 	SubscriptionStatus string `json:"subscription_status" validate:"required"`
 	SubscriptionExpiry string `json:"subscription_expriry" validate:"required"`
@@ -48,7 +48,7 @@ type UserCreateRequest struct {
 	Alamat             string `json:"alamat" validate:"required"`
 	Thumbnail          string `json:"thumbnail"`
 	Number             string `json:"number" validate:"required"`
-	Role               string `json:"role" validate:"required"`
+	Role               Role   `json:"role" validate:"required"`
 	TokoID             uint   `json:"toko_id" validate:"required"`
 	SubscriptionStatus string `json:"subscription_status" validate:"required"`
 	SubscriptionExpiry string `json:"subscription_expiry" validate:"required"`

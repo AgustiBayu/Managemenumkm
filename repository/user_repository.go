@@ -15,4 +15,5 @@ type UserRepository interface {
 	Update(ctx context.Context, user *domain.User) (*domain.User, error)
 	Delete(ctx context.Context, user *domain.User) error
 	UploadThumbnail(ctx context.Context, userID uint, path string) error
+	CountByTokoIDAndRole(ctx context.Context, tokoID uint, role domain.Role) (int64, error)
 }

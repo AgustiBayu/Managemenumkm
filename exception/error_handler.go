@@ -9,6 +9,13 @@ func (e *ErrorHandler) Error() string {
 	return e.Message
 }
 
+func Forbidden(message string) *ErrorHandler {
+	return &ErrorHandler{
+		Code:    403,
+		Message: message,
+	}
+}
+
 func NotFound(message string) *ErrorHandler {
 	return &ErrorHandler{
 		Code:    404,

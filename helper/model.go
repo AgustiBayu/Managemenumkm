@@ -16,7 +16,7 @@ func ToUserResponse(user *domain.User) *domain.UserResponse {
 		Alamat:                 user.Alamat,
 		Thumbnail:              user.Thumbnail,
 		Number:                 user.Number,
-		Role:                   user.Role,
+		Role:                   string(user.Role),
 		Toko:                   tokoResponse,
 		SubscriptionStatus:     user.SubscriptionStatus,
 		SubscriptionExpiry:     FormatDate(user.SubscriptionExpiry),

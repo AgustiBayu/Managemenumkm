@@ -105,3 +105,11 @@ func (u *UserRepositoryImpl) FindAllByToko(ctx context.Context, tokoID uint, pag
 
 	return users, totalItem, nil
 }
+
+func (u *UserRepositoryImpl) CountByTokoIDAndRole(ctx context.Context, tokoID uint, role domain.Role) (int64, error) {
+	var count int64
+	if err := u.DB.WithContext(ctx).Model(&domain.User{}).Where("toko_id = ? AND role = ?", tokoID, role).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
