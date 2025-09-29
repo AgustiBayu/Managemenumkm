@@ -11,6 +11,15 @@ import (
 func DBSeed(db *gorm.DB) {
 	seedToko(db)
 	seedUsers(db)
+	seedCate(db)
+}
+func seedCate(db *gorm.DB) {
+	cates := []domain.ProductCategory{
+		{Category: "Makanan"},
+	}
+	for _, cate := range cates {
+		db.Create(&cate)
+	}
 }
 func seedToko(db *gorm.DB) {
 	tokos := []domain.Toko{
@@ -20,6 +29,7 @@ func seedToko(db *gorm.DB) {
 		db.Create(&toko)
 	}
 }
+
 func seedUsers(db *gorm.DB) {
 	userRepository := repository.NewUserRepository(db)
 	_, err := userRepository.FindByEmail("agustibayusamudro27@gmail.com")

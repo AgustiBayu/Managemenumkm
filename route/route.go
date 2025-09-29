@@ -9,7 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func NewRouter(userController controller.UserController, tokoController controller.TokoController) *httprouter.Router {
+func NewRouter(userController controller.UserController, tokoController controller.TokoController, categoryController controller.ProductCategoryController, productController controller.ProductController) *httprouter.Router {
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.Dir("static"))
 
@@ -40,6 +40,22 @@ func NewRouter(userController controller.UserController, tokoController controll
 	router.GET("/toko/edit/:tokoID", middleware.Authorize(tokoController.FindById, domain.RoleSuperAdmin))
 	router.POST("/toko/edit/:tokoID", middleware.Authorize(tokoController.Update, domain.RoleSuperAdmin))
 	router.GET("/toko/delete/:tokoID", middleware.Authorize(tokoController.Delete, domain.RoleSuperAdmin))
+
+	// --- Category Product Management ---
+	router.GET("/category", middleware.Authorize(categoryController.FindAll, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+
+	router.GET("/category/add", middleware.Authorize(categoryController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.POST("/category/add", middleware.Authorize(categoryController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.GET("/category/edit/:categoryID", middleware.Authorize(categoryController.FindById, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.POST("/category/edit/:categoryID", middleware.Authorize(categoryController.Update, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.GET("/category/delete/:categoryID", middleware.Authorize(categoryController.Delete, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+
+	router.GET("/product", middleware.Authorize(productController.FindAll, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.GET("/product/add", middleware.Authorize(productController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.POST("/product/add", middleware.Authorize(productController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.GET("/product/edit/:productId", middleware.Authorize(productController.FindById, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.POST("/product/edit/:productId", middleware.Authorize(productController.Update, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	router.GET("/product/delete/:productId", middleware.Authorize(productController.Delete, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 
 	return router
 }

@@ -1,4 +1,18 @@
 {{ define "navbar" }}
+<style>    
+    .dropdown-submenu .dropdown-menu {
+        margin-left: 0.5rem;
+        border: none; /* Optional: remove border for a flatter look */
+    }    
+    .dropdown-submenu > .dropdown-toggle::after {
+        transform: rotate(-90deg); /* Start pointing right */
+        transition: transform 0.2s ease-in-out;
+    }    
+    .dropdown-submenu > .dropdown-toggle.submenu-open::after {
+        transform: rotate(0deg); /* Point down when open */
+    }
+</style>
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="/dashboard">Managemen UMKM</a>
@@ -15,21 +29,21 @@
                         <i class="bi bi-tag-fill me-2"></i> Produk
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#">Kategori</a></li>
-                        <li><a class="dropdown-item" href="#">Produk</a></li>                        
+                        <li><a class="dropdown-item" href="/category">Kategori</a></li>
+                        <li><a class="dropdown-item" href="/product">Produk</a></li>                        
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#">Detail Transaksi</a></li>
                     </ul>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-grid-fill me-2"></i> Keuangan
+                        <i class="bi bi-grid-fill me-2"></i> Akutansi
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                         <li><a class="dropdown-item" href="#">Kategori</a></li>
-                        <li><a class="dropdown-item" href="#">Buku Besar</a></li>                        
+                        <li><a class="dropdown-item" href="#">Jurnal</a></li>                        
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#">Laporan</a></li>
+                        <li><a class="dropdown-item" href="#">Buku Besar</a></li>
                     </ul>
                 </li>
             </ul>

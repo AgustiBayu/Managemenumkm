@@ -1,0 +1,197 @@
+{{ define "title" }}Add Product{{ end }}
+
+{{ define "content" }}
+<style>
+    .preview-thumbnail {
+        max-width: 200px;
+        max-height: 200px;
+        margin-top: 15px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        padding: 5px;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h2 class="mb-0">Add Product</h2>
+        </div>
+        <div class="card-body">
+            <form action="/product/add" method="POST" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">Product Name</label>
+                                <input type="text" class="form-control" id="name" name="name" required autofocus>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="category_id" class="form-label">Category</label>
+                                <select class="form-select" id="category_id" name="category_id" required>
+                                    <option value="" disabled>Choose category...</option>
+                                    {{range .Categories}}
+                                        <option value="{{.ID}}" {{if eq .ID $.Product.CategoryID}}selected{{end}}>{{.Category}}</option>
+                                    {{end}}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="price" class="form-label">Price</label>
+                                <input type="number" class="form-control" id="price" name="price" required>
+                            </div>
+                             <div class="col-md-6 mb-3">
+                                <label for="barcode" class="form-label">Barcode</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="barcode" name="barcode">
+                                    <button class="btn btn-outline-secondary" type="button" id="scan-btn">Scan</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="reader" style="width: 100%;"></div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="stock" class="form-label">Stock</label>
+                                <input type="number" class="form-control" id="stock" name="stock" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="exp" class="form-label">Expiration Date</label>
+                                <input type="date" class="form-control" id="exp" name="exp">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="thumbnail" class="form-label">Thumbnail</label>
+                            <input class="form-control" type="file" id="thumbnail" name="thumbnail" accept="image/*">
+                            <button type="button" class="btn btn-secondary mt-2" id="take-photo-btn">Take Photo</button>
+                            <div id="camera-container" style="display: none;" class="mt-2">
+                                <video id="camera-stream" width="100%" autoplay></video>
+                                <button type="button" class="btn btn-primary mt-2" id="capture-btn">Capture</button>
+                                <button type="button" class="btn btn-info mt-2" id="switch-camera-btn">Switch Camera</button>
+                                <button type="button" class="btn btn-secondary mt-2" id="cancel-camera-btn">Cancel</button>
+                                <canvas id="canvas" style="display: none;"></canvas>
+                            </div>
+                            <img id="preview" class="preview-thumbnail" src="#" alt="Image Preview" style="display: none;"/>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-end">
+                    <a href="/product" class="btn btn-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    document.getElementById('scan-btn').addEventListener('click', () => {
+        const html5QrCode = new Html5Qrcode("reader");
+        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+            document.getElementById('barcode').value = decodedText;
+            html5QrCode.stop().then((ignore) => {
+                // QR Code scanning is stopped.
+            }).catch((err) => {
+                // Stop failed, handle it.
+            });
+        };
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
+    });
+
+    const takePhotoButton = document.getElementById('take-photo-btn');
+    const cameraContainer = document.getElementById('camera-container');
+    const video = document.getElementById('camera-stream');
+    const captureButton = document.getElementById('capture-btn');
+    const switchCameraButton = document.getElementById('switch-camera-btn');
+    const cancelCameraButton = document.getElementById('cancel-camera-btn');
+    const canvas = document.getElementById('canvas');
+    const thumbnailInput = document.getElementById('thumbnail');
+    const preview = document.getElementById('preview');
+
+    let currentStream;
+    let facingMode = 'environment';
+
+    const startCamera = async (mode) => {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+
+        const constraints = {
+            video: {
+                facingMode: mode
+            }
+        };
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = stream;
+            currentStream = stream;
+            cameraContainer.style.display = 'block';
+        } catch (err) {
+            console.error("Error accessing camera: ", err);
+            alert('Could not access camera. Please make sure you have a camera and have granted permission.');
+        }
+    };
+
+    const stopCamera = () => {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        video.srcObject = null;
+        currentStream = null;
+        cameraContainer.style.display = 'none';
+    };
+
+    takePhotoButton.addEventListener('click', () => {
+        startCamera(facingMode);
+    });
+
+    switchCameraButton.addEventListener('click', () => {
+        facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+        startCamera(facingMode);
+    });
+
+    cancelCameraButton.addEventListener('click', () => {
+        stopCamera();
+    });
+
+    captureButton.addEventListener('click', () => {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+
+        canvas.toBlob((blob) => {
+            const file = new File([blob], "capture.png", { type: "image/png" });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            thumbnailInput.files = dataTransfer.files;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            stopCamera();
+        }, 'image/png');
+    });
+
+    thumbnailInput.addEventListener('change', () => {
+        const file = thumbnailInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+{{ end }}
