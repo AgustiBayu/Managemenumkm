@@ -31,10 +31,7 @@ func NewRouter(userController controller.UserController, tokoController controll
 	router.DELETE("/user/delete/:userID", middleware.Authorize(userController.Delete, domain.RoleSuperAdmin, domain.RoleAdmin))
 
 	// --- Toko Management ---
-	// Admins can see the list of all stores, but can't act on them (this can be refined in the view)
 	router.GET("/toko", middleware.Authorize(tokoController.FindAll, domain.RoleSuperAdmin, domain.RoleAdmin))
-
-	// Only Superadmin can Create, Update, Delete stores
 	router.GET("/toko/add", middleware.Authorize(tokoController.Create, domain.RoleSuperAdmin))
 	router.POST("/toko/add", middleware.Authorize(tokoController.Create, domain.RoleSuperAdmin))
 	router.GET("/toko/edit/:tokoID", middleware.Authorize(tokoController.FindById, domain.RoleSuperAdmin))
@@ -43,19 +40,31 @@ func NewRouter(userController controller.UserController, tokoController controll
 
 	// --- Category Product Management ---
 	router.GET("/category", middleware.Authorize(categoryController.FindAll, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-
 	router.GET("/category/add", middleware.Authorize(categoryController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 	router.POST("/category/add", middleware.Authorize(categoryController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 	router.GET("/category/edit/:categoryID", middleware.Authorize(categoryController.FindById, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 	router.POST("/category/edit/:categoryID", middleware.Authorize(categoryController.Update, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 	router.GET("/category/delete/:categoryID", middleware.Authorize(categoryController.Delete, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
 
-	router.GET("/product", middleware.Authorize(productController.FindAll, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-	router.GET("/product/add", middleware.Authorize(productController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-	router.POST("/product/add", middleware.Authorize(productController.Create, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-	router.GET("/product/edit/:productId", middleware.Authorize(productController.FindById, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-	router.POST("/product/edit/:productId", middleware.Authorize(productController.Update, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
-	router.GET("/product/delete/:productId", middleware.Authorize(productController.Delete, domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier))
+	// --- Product Management ---
+	// Allow all authenticated users to see the product list
+	authAll := []domain.Role{domain.RoleSuperAdmin, domain.RoleAdmin, domain.RoleCashier}
+
+	// Master Product Routes
+	router.GET("/product", middleware.Authorize(productController.FindAll, authAll...))
+	router.GET("/product/add", middleware.Authorize(productController.CreateView, authAll...))
+	router.POST("/product/add", middleware.Authorize(productController.Create, authAll...))
+	router.GET("/product/edit/:productId", middleware.Authorize(productController.FindById, authAll...))
+	router.POST("/product/edit/:productId", middleware.Authorize(productController.Update, authAll...))
+	router.GET("/product/delete/:productId", middleware.Authorize(productController.Delete, authAll...))
+
+	// Stock and Batch Management Routes
+	router.GET("/product/stock/add", middleware.Authorize(productController.AddStockView, authAll...))
+	router.POST("/product/stock/scan", middleware.Authorize(productController.AddStockScanBarcode, authAll...))
+	router.POST("/product/stock/save", middleware.Authorize(productController.AddStockSaveBatch, authAll...))
+	router.GET("/product/batches/:productId", middleware.Authorize(productController.ListBatches, authAll...))
+	router.GET("/product/batch/edit/:batchId", middleware.Authorize(productController.EditBatchView, authAll...))
+	router.POST("/product/batch/edit/:batchId", middleware.Authorize(productController.EditBatch, authAll...))
 
 	return router
 }

@@ -1,0 +1,42 @@
+{{ define "title" }}Edit Product Batch{{ end }}
+
+{{ define "content" }}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h2 class="mb-0">Edit Product Batch</h2>
+            <p class="mb-0">Product: <strong>{{.Product.Name}}</strong> (SKU: {{.Product.SKU}})</p>
+        </div>
+        <div class="card-body">
+            <form action="/product/batch/edit/{{.Batch.ID}}" method="POST">
+                <input type="hidden" name="product_id" value="{{.Product.ID}}">
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="barcode" class="form-label">Barcode</label>
+                        <input type="text" class="form-control" id="barcode" name="barcode" readonly value="{{.Batch.Barcode}}">
+                        <div class="form-text">Barcode cannot be changed.</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="stock" class="form-label">Stock</label>
+                        <input type="number" class="form-control" id="stock" name="stock" required min="0" value="{{.Batch.Stock}}">
+                        <div class="form-text">The current stock quantity for this batch.</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="exp" class="form-label">Expiration Date</label>
+                        <input type="date" class="form-control" id="exp" name="exp" required value="{{.Batch.Exp}}">
+                        <div class="form-text">The expiration date for this batch.</div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-end">
+                    <a href="/product/batches/{{.Product.ID}}" class="btn btn-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update Batch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{ end }}

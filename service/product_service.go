@@ -2,17 +2,16 @@ package service
 
 import (
 	"Managemenumkm/domain"
-	"context"
-	"mime/multipart"
 )
 
+// ProductService handles the business logic for master products.
 type ProductService interface {
-	Create(ctx context.Context, req *domain.ProductCreateRequest, file multipart.File, handler *multipart.FileHeader) error
-	FindAll(ctx context.Context) ([]*domain.ProductResponse, error)
-	FindById(ctx context.Context, produkId int) (*domain.ProductResponse, error)
-	FindByBarcode(ctx context.Context, barcode string) (*domain.ProductResponse, error)
-	FindLowStock(ctx context.Context, threshold uint) ([]*domain.ProductResponse, error)
-	Update(ctx context.Context, req *domain.ProductUpdateRequest, file multipart.File, handler *multipart.FileHeader) error
-	UpdateStock(ctx context.Context, productId uint, req *domain.ProductUpdateStockRequest) error
-	Delete(ctx context.Context, produkId int) error
+	Create(req domain.ProductCreateRequest) (domain.ProductResponse, error)
+	Update(req domain.ProductUpdateRequest) (domain.ProductResponse, error)
+	Delete(productID uint) error
+	FindById(productID uint) (domain.ProductResponse, error)
+	FindAll() ([]domain.ProductResponse, error)
+
+	// AddStock creates a new batch for an existing product.
+	AddStock(req domain.AddStockStep2Request) (domain.ProductBatchResponse, error)
 }

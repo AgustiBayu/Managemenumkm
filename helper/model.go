@@ -1,33 +1,74 @@
 package helper
 
-import "Managemenumkm/domain"
+import (
+	"Managemenumkm/domain"
+	"time"
+)
 
-func ToProductResponse(product *domain.Product, category *domain.ProductCategory) *domain.ProductResponse {
-	return &domain.ProductResponse{
+// ToProductResponse converts a Product domain model to a ProductResponse DTO.
+// It calculates the total stock from all associated batches.
+func ToProductResponse(product domain.Product) domain.ProductResponse {
+	var totalStock uint
+	for _, batch := range product.Batches {
+		totalStock += batch.Stock
+	}
+
+	return domain.ProductResponse{
 		ID:         product.ID,
 		Name:       product.Name,
-		Thumbnail:  product.Thumbnail,
+		SKU:        product.SKU,
 		Price:      product.Price,
-		Exp:        FormatDate(product.Exp),
-		Stock:      product.Stock,
+		TotalStock: totalStock,
 		CategoryID: product.CategoryID,
 		ProductCategory: domain.ProductCategoryResponse{
-			ID:       category.ID,
-			Category: category.Category,
+			ID:       product.Category.ID,
+			Category: product.Category.Category,
 		},
-		Barcode: product.Barcode,
 	}
 }
-func ToProductResponses(producs []*domain.Product, categoriesMap map[uint]*domain.ProductCategory) []*domain.ProductResponse {
-	var productResponses []*domain.ProductResponse
-	for _, product := range producs {
-		category, exits := categoriesMap[product.CategoryID]
-		if !exits {
-			category = &domain.ProductCategory{}
-		}
-		productResponses = append(productResponses, ToProductResponse(product, category))
+
+// ToProductResponses converts a slice of Product domain models to a slice of ProductResponse DTOs.
+func ToProductResponses(products []domain.Product) []domain.ProductResponse {
+	var productResponses []domain.ProductResponse
+	for _, product := range products {
+		productResponses = append(productResponses, ToProductResponse(product))
 	}
 	return productResponses
+}
+
+// ToProductBatchResponse converts a ProductBatch domain model to a ProductBatchResponse DTO.
+func ToProductBatchResponse(batch domain.ProductBatch) domain.ProductBatchResponse {
+	return domain.ProductBatchResponse{
+		ID:        batch.ID,
+		ProductID: batch.ProductID,
+		Barcode:   batch.Barcode,
+		Exp:       FormatDate(batch.Exp),
+		Stock:     batch.Stock,
+		DateAdded: FormatDate(batch.DateAdded),
+	}
+}
+
+// ToProductBatchResponses converts a slice of ProductBatch domain models to a slice of ProductBatchResponse DTOs.
+func ToProductBatchResponses(batches []domain.ProductBatch) []domain.ProductBatchResponse {
+	var batchResponses []domain.ProductBatchResponse
+	for _, batch := range batches {
+		batchResponses = append(batchResponses, ToProductBatchResponse(batch))
+	}
+	return batchResponses
+}
+
+// ToProductBatch converts a ProductBatchUpdateRequest DTO to a ProductBatch domain model.
+func ToProductBatch(request domain.ProductBatchUpdateRequest) (domain.ProductBatch, error) {
+	expTime, err := time.Parse("2006-01-02", request.Exp)
+	if err != nil {
+		return domain.ProductBatch{}, err
+	}
+	return domain.ProductBatch{
+		ID:        request.ID,
+		ProductID: request.ProductID,
+		Stock:     request.Stock,
+		Exp:       expTime,
+	}, nil
 }
 
 func ToProductCategoryResponse(category *domain.ProductCategory) *domain.ProductCategoryResponse {

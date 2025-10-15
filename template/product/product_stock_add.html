@@ -1,0 +1,113 @@
+{{ define "title" }}Add Stock{{ end }}
+
+{{ define "content" }}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h2 class="mb-0">Add New Stock (Batch)</h2>
+        </div>
+        <div class="card-body">
+
+            {{if .Error}}
+                <div class="alert alert-danger">{{.Error}}</div>
+            {{end}}
+
+            {{if eq .Step 2}}
+                <!-- Step 2: Associate Product and Add Details -->
+                <form action="/product/stock/save" method="POST">
+                    <input type="hidden" name="barcode" value="{{.Barcode}}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Barcode</label>
+                        <input type="text" class="form-control" value="{{.Barcode}}" disabled>
+                        <div class="form-text">This is a new, unregistered barcode.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="product_id" class="form-label">Master Product</label>
+                        <select class="form-select" id="product_id" name="product_id" required>
+                            <option value="" disabled selected>Select the master product for this batch...</option>
+                            {{range .Products}}
+                                <option value="{{.ID}}">{{.Name}} (SKU: {{.SKU}})</option>
+                            {{end}}
+                        </select>
+                        <div class="form-text">Associate this new batch with a master product.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="stock" class="form-label">Stock Quantity</label>
+                            <input type="number" class="form-control" id="stock" name="stock" required min="1">
+                            <div class="form-text">The number of items in this batch.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="exp" class="form-label">Expiration Date</label>
+                            <input type="date" class="form-control" id="exp" name="exp" required>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-end">
+                        <a href="/product/stock/add" class="btn btn-secondary me-2">Start Over</a>
+                        <button type="submit" class="btn btn-primary">Save New Batch</button>
+                    </div>
+                </form>
+
+            {{else}}
+                <!-- Step 1: Scan Barcode -->
+                <form action="/product/stock/scan" method="POST">
+                    <div class="mb-3">
+                        <label for="barcode" class="form-label">Scan or Enter Barcode</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="barcode" name="barcode" required autofocus>
+                            <button class="btn btn-outline-secondary" type="button" id="scan-btn">Scan</button>
+                        </div>
+                    </div>
+                    <div id="reader" style="width: 100%; max-width: 500px;" class="mb-3"></div>
+
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-end">
+                        <a href="/product" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Next</button>
+                    </div>
+                </form>
+            {{end}}
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    // Only run scanner script if the button exists (on Step 1)
+    const scanBtn = document.getElementById('scan-btn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', () => {
+            const readerElement = document.getElementById("reader");
+            readerElement.style.display = 'block'; // Show the reader
+            const html5QrCode = new Html5Qrcode("reader");
+            
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                document.getElementById('barcode').value = decodedText;
+                html5QrCode.stop().then((ignore) => {
+                    readerElement.style.display = 'none'; // Hide reader on success
+                }).catch((err) => {
+                    console.log("QR Code stop failed.");
+                });
+            };
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            // Prefer back camera
+            html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+            .catch(err => {
+                console.log("Unable to start QR Code scanner with back camera, trying front.");
+                // If back camera fails, try front camera
+                html5QrCode.start({ facingMode: "user" }, config, qrCodeSuccessCallback)
+                .catch(err2 => {
+                    alert("Could not start QR Code scanner. Please enter barcode manually.");
+                });
+            });
+        });
+    }
+</script>
+{{ end }}

@@ -17,7 +17,7 @@ func main() {
 
 	helper.InitJWT()
 	db := app.DB()
-	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{})
+	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{}, &domain.ProductBatch{})
 	helper.DBSeed(db)
 	validate := validator.New()
 
@@ -26,18 +26,20 @@ func main() {
 	tokoRepo := repository.NewTokoRepository(db)
 	cateRepo := repository.NewProductCategoryRepository(db)
 	proRepo := repository.NewProductRepository(db)
+	batchRepo := repository.NewProductBatchRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, validate)
 	tokoService := service.NewTokoService(tokoRepo, validate)
 	cateService := service.NewProductCategoryService(cateRepo, validate)
-	proService := service.NewProductService(proRepo, cateRepo, validate)
+	batchService := service.NewProductBatchService(batchRepo, validate)
+	proService := service.NewProductService(proRepo, batchRepo, cateRepo, validate)
 
 	// Controllers
 	userController := controller.NewUserController(userService, tokoService)
 	tokoController := controller.NewTokoController(tokoService)
 	cateController := controller.NewProductCategoryController(cateService)
-	proController := controller.NewProductController(proService, cateService)
+	proController := controller.NewProductController(proService, batchService, cateService)
 
 	router := route.NewRouter(userController, tokoController, cateController, proController)
 	println("Server running at https://localhost:8443")

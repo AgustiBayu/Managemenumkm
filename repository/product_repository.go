@@ -2,17 +2,19 @@ package repository
 
 import (
 	"Managemenumkm/domain"
-	"context"
+
+	"gorm.io/gorm"
 )
 
 type ProductRepository interface {
-	Create(ctx context.Context, product *domain.Product) (*domain.Product, error)
-	FindAll(ctx context.Context) ([]*domain.Product, map[uint]*domain.ProductCategory, error)
-	FindById(ctx context.Context, produkId uint) (*domain.Product, *domain.ProductCategory, error)
-	FindByBarcode(ctx context.Context, barcode string) (*domain.Product, error)
-	FindLowStock(ctx context.Context, threshold uint) ([]*domain.Product, error)
-	Update(ctx context.Context, product *domain.Product) (*domain.Product, error)
-	UpdateStock(ctx context.Context, productId uint, newStock uint) error
-	Delete(ctx context.Context, product *domain.Product) error
-	UploadThumbnail(ctx context.Context, productId uint, path string) error
+	Save(product domain.Product) (domain.Product, error)
+	FindAll() ([]domain.Product, error)
+	FindById(productID uint) (domain.Product, error)
+	FindBySKU(sku string) (domain.Product, error)
+	Update(product domain.Product) (domain.Product, error)
+	Delete(productID uint) error
+}
+
+func NewProductRepository(db *gorm.DB) ProductRepository {
+	return &productRepositoryImpl{DB: db}
 }

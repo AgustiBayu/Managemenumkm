@@ -1,4 +1,6 @@
-{{define "content"}}
+{{ define "title" }}Product Batches{{ end }}
+
+{{ define "content" }}
 <style>
     /* Responsive table styles */
     @media (max-width: 767.98px) {
@@ -32,43 +34,44 @@
 </style>
 
 <div class="container-fluid">
-    <h1 class="h3 mb-2 text-gray-800">Master Products</h1>
-    <p class="mb-4">This page lists all master products. Stock is managed in batches for each product.</p>
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Product Batches</h1>
+            <p class="mb-0">Showing all batches for: <strong>{{.Product.Name}}</strong> (SKU: {{.Product.SKU}})</p>
+        </div>
+        <a href="/product" class="btn btn-sm btn-secondary shadow-sm">Back to Products List</a>
+    </div>
+
     <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <a href="/product/add" class="btn btn-primary">Add Master Product</a>
-            <a href="/product/stock/add" class="btn btn-success">Add New Stock (Batch)</a>
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Batch List</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>SKU</th>
-                            <th>Category</th>
-                            <th>Price</th>
-                            <th>Total Stock</th>
+                            <th>Barcode</th>
+                            <th>Stock</th>
+                            <th>Exp. Date</th>
+                            <th>Date Added</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {{range .Products}}
+                        {{range .Batches}}
                         <tr>
-                            <td data-label="Name">{{.Name}}</td>
-                            <td data-label="SKU">{{.SKU}}</td>
-                            <td data-label="Category">{{.ProductCategory.Category}}</td>
-                            <td data-label="Price">{{.Price}}</td>
-                            <td data-label="Total Stock">{{.TotalStock}}</td>
+                            <td data-label="Barcode">{{.Barcode}}</td>
+                            <td data-label="Stock">{{.Stock}}</td>
+                            <td data-label="Exp. Date">{{.Exp}}</td>
+                            <td data-label="Date Added">{{.DateAdded}}</td>
                             <td data-label="Actions" class="text-end">
-                                <a href="/product/batches/{{.ID}}" class="btn btn-sm btn-info">Batches</a>
-                                <a href="/product/edit/{{.ID}}" class="btn btn-sm btn-warning">Edit</a>
-                                <a href="/product/delete/{{.ID}}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this master product?')">Delete</a>
+                                <a href="/product/batch/edit/{{.ID}}" class="btn btn-sm btn-primary">Edit</a>
                             </td>
                         </tr>
                         {{else}}
                         <tr>
-                            <td colspan="6" class="text-center">No products found.</td>
+                            <td colspan="5" class="text-center">No batches found for this product.</td>
                         </tr>
                         {{end}}
                     </tbody>

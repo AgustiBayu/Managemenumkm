@@ -6,207 +6,165 @@ import (
 	"Managemenumkm/helper"
 	"Managemenumkm/repository"
 	"context"
-	"fmt"
-	"io"
-	"mime/multipart"
-	"os"
-	"path/filepath"
-	"strings"
+	"errors"
+	"time"
 
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
-type ProductServiceImpl struct {
-	ProductRepository         repository.ProductRepository
-	ProductCategoryRepository repository.ProductCategoryRepository
-	Validate                  *validator.Validate
+type productServiceImpl struct {
+	ProductRepo      repository.ProductRepository
+	ProductBatchRepo repository.ProductBatchRepository
+	CategoryRepo     repository.ProductCategoryRepository // Keep for validation
+	Validate         *validator.Validate
 }
 
-func NewProductService(productRepository repository.ProductRepository, productCategoryRepository repository.ProductCategoryRepository,
-	validate *validator.Validate) ProductService {
-	return &ProductServiceImpl{
-		ProductRepository:         productRepository,
-		ProductCategoryRepository: productCategoryRepository,
-		Validate:                  validate,
+func NewProductService(productRepo repository.ProductRepository, batchRepo repository.ProductBatchRepository, categoryRepo repository.ProductCategoryRepository, validate *validator.Validate) ProductService {
+	return &productServiceImpl{
+		ProductRepo:      productRepo,
+		ProductBatchRepo: batchRepo,
+		CategoryRepo:     categoryRepo,
+		Validate:         validate,
 	}
 }
 
-func (p *ProductServiceImpl) Create(ctx context.Context, req *domain.ProductCreateRequest, file multipart.File, handler *multipart.FileHeader) error {
-	if err := p.Validate.Struct(req); err != nil {
-		var validationErrors []string
-		for _, err := range err.(validator.ValidationErrors) {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s is %s", err.Field(), err.Tag()))
-		}
-		return exception.BadRequest("validation failed: " + strings.Join(validationErrors, ", "))
+// Create handles creation of a new master product.
+func (s *productServiceImpl) Create(req domain.ProductCreateRequest) (domain.ProductResponse, error) {
+	if err := s.Validate.Struct(req); err != nil {
+		return domain.ProductResponse{}, exception.BadRequest(err.Error())
 	}
-	EXP, err := helper.ParseDate(req.Exp)
+
+	// Check if SKU is unique
+	_, err := s.ProductRepo.FindBySKU(req.SKU)
+	if err == nil {
+		return domain.ProductResponse{}, exception.InternalServerError("Product with this SKU already exists")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.ProductResponse{}, err // Handle other db errors
+	}
+
+	// Check if category exists
+	ctx := context.Background()
+	_, err = s.CategoryRepo.FindById(ctx, int(req.CategoryID))
 	if err != nil {
-		return exception.BadRequest("invalid date format, use yyyy-mm-dd or dd-mm-yyyy")
-	}
-
-	var thumbnailPath string
-	if file != nil {
-		if err := os.MkdirAll("static/image", os.ModePerm); err != nil {
-			return exception.InternalServerError("failed to create image directory")
-		}
-		filePath := filepath.Join("static/image", handler.Filename)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			return exception.InternalServerError("failed to save image")
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, file); err != nil {
-			return exception.InternalServerError("failed to copy image file")
-		}
-		thumbnailPath = filePath
+		return domain.ProductResponse{}, exception.NotFound("Product category not found")
 	}
 
 	product := domain.Product{
 		Name:       req.Name,
-		Thumbnail:  thumbnailPath,
+		SKU:        req.SKU,
 		Price:      req.Price,
-		Exp:        EXP,
-		Stock:      req.Stock,
 		CategoryID: req.CategoryID,
-		Barcode:    req.Barcode,
-	}
-	if _, err := p.ProductRepository.Create(ctx, &product); err != nil {
-		return exception.InternalServerError("failed to create product")
-	}
-	return nil
-}
-func (p *ProductServiceImpl) FindAll(ctx context.Context) ([]*domain.ProductResponse, error) {
-	product, category, err := p.ProductRepository.FindAll(ctx)
-	if err != nil {
-		return nil, exception.InternalServerError("data is not found")
-	}
-	if len(product) == 0 {
-		return []*domain.ProductResponse{}, nil
-	}
-	return helper.ToProductResponses(product, category), nil
-}
-func (p *ProductServiceImpl) FindById(ctx context.Context, produkId int) (*domain.ProductResponse, error) {
-	product, category, err := p.ProductRepository.FindById(ctx, uint(produkId))
-	if err != nil {
-		return nil, exception.NotFound("id category not exists")
-	}
-	return helper.ToProductResponse(product, category), nil
-}
-func (p *ProductServiceImpl) FindByBarcode(ctx context.Context, barcode string) (*domain.ProductResponse, error) {
-	product, err := p.ProductRepository.FindByBarcode(ctx, barcode)
-	if err != nil {
-		return nil, exception.NotFound("barcode not exists")
-	}
-	return helper.ToProductResponse(product, &product.Category), nil
-}
-func (p *ProductServiceImpl) Update(ctx context.Context, req *domain.ProductUpdateRequest, file multipart.File, handler *multipart.FileHeader) error {
-	if err := p.Validate.Struct(req); err != nil {
-		var validationErrors []string
-		for _, err := range err.(validator.ValidationErrors) {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s is %s", err.Field(), err.Tag()))
-		}
-		return exception.BadRequest("validation failed: " + strings.Join(validationErrors, ", "))
 	}
 
-	product, _, err := p.ProductRepository.FindById(ctx, uint(req.ID))
+	newProduct, err := s.ProductRepo.Save(product)
 	if err != nil {
-		return exception.NotFound("id category not exists")
+		return domain.ProductResponse{}, err
 	}
 
-	EXP, err := helper.ParseDate(req.Exp)
-	if err != nil {
-		return exception.BadRequest("invalid date format, use yyyy-mm-dd or dd-mm-yyyy")
-	}
-
-	product.Name = req.Name
-	product.Price = req.Price
-	product.Exp = EXP
-	product.Stock = req.Stock
-	product.Barcode = req.Barcode
-	product.CategoryID = req.CategoryID
-
-	if file != nil {
-		if err := os.MkdirAll("static/image", os.ModePerm); err != nil {
-			return exception.InternalServerError("failed to create image directory")
-		}
-		filePath := filepath.Join("static/image", handler.Filename)
-		dst, err := os.Create(filePath)
-		if err != nil {
-			return exception.InternalServerError("failed to save image")
-		}
-		defer dst.Close()
-		if _, err := io.Copy(dst, file); err != nil {
-			return exception.InternalServerError("failed to copy image file")
-		}
-		product.Thumbnail = filePath
-	}
-
-	if _, err := p.ProductRepository.Update(ctx, product); err != nil {
-		return exception.InternalServerError("failed to update product")
-	}
-	return nil
-}
-func (p *ProductServiceImpl) Delete(ctx context.Context, produkId int) error {
-	product, _, err := p.ProductRepository.FindById(ctx, uint(produkId))
-	if err != nil {
-		return exception.NotFound("id product not exist")
-	}
-	if err := p.ProductRepository.Delete(ctx, product); err != nil {
-		return exception.InternalServerError("failed to delete product")
-	}
-	return nil
-}
-func (p *ProductServiceImpl) UploadThumbnail(ctx context.Context, productId uint, file multipart.File, handler *multipart.FileHeader) error {
-	defer file.Close()
-	product, _, err := p.ProductRepository.FindById(ctx, productId)
-	if err != nil {
-		return exception.NotFound("id product not exists")
-	}
-	if err := os.MkdirAll("static/image", os.ModePerm); err != nil {
-		return exception.InternalServerError("failed to create image directory")
-	}
-	filePath := filepath.Join("static/image", handler.Filename)
-	dst, err := os.Create(filePath)
-	if err != nil {
-		return exception.InternalServerError("failed to save image")
-	}
-	defer dst.Close()
-	if _, err := io.Copy(dst, file); err != nil {
-		return exception.InternalServerError("failed to copy image file")
-	}
-	if err := p.ProductRepository.UploadThumbnail(ctx, product.ID, filePath); err != nil {
-		return exception.InternalServerError("failed to update product thumbnail")
-	}
-	return nil
+	// Reload to get associations
+	newProduct, _ = s.ProductRepo.FindById(newProduct.ID)
+	return helper.ToProductResponse(newProduct), nil
 }
 
-func (p *ProductServiceImpl) UpdateStock(ctx context.Context, productId uint, req *domain.ProductUpdateStockRequest) error {
-	if err := p.Validate.Struct(req); err != nil {
-		return exception.BadRequest("invalid request, stock is required and must be zero or greater")
+// Update handles updates to a master product.
+func (s *productServiceImpl) Update(req domain.ProductUpdateRequest) (domain.ProductResponse, error) {
+	if err := s.Validate.Struct(req); err != nil {
+		return domain.ProductResponse{}, exception.BadRequest(err.Error())
 	}
 
 	// Check if product exists
-	if _, _, err := p.ProductRepository.FindById(ctx, productId); err != nil {
-		return exception.NotFound("product not found")
+	product, err := s.ProductRepo.FindById(req.ID)
+	if err != nil {
+		return domain.ProductResponse{}, exception.NotFound("Product not found")
 	}
 
-	if err := p.ProductRepository.UpdateStock(ctx, productId, req.Stock); err != nil {
-		return exception.InternalServerError("failed to update stock")
+	// Check if SKU is being changed to one that already exists
+	if product.SKU != req.SKU {
+		_, err := s.ProductRepo.FindBySKU(req.SKU)
+		if err == nil {
+			return domain.ProductResponse{}, exception.InternalServerError("Another product with this SKU already exists")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ProductResponse{}, err
+		}
 	}
 
-	return nil
+	product.Name = req.Name
+	product.SKU = req.SKU
+	product.Price = req.Price
+	product.CategoryID = req.CategoryID
+
+	updatedProduct, err := s.ProductRepo.Update(product)
+	if err != nil {
+		return domain.ProductResponse{}, err
+	}
+
+	// Reload to get associations
+	updatedProduct, _ = s.ProductRepo.FindById(updatedProduct.ID)
+	return helper.ToProductResponse(updatedProduct), nil
 }
 
-func (p *ProductServiceImpl) FindLowStock(ctx context.Context, threshold uint) ([]*domain.ProductResponse, error) {
-	products, err := p.ProductRepository.FindLowStock(ctx, threshold)
+// AddStock creates a new product batch.
+func (s *productServiceImpl) AddStock(req domain.AddStockStep2Request) (domain.ProductBatchResponse, error) {
+	if err := s.Validate.Struct(req); err != nil {
+		return domain.ProductBatchResponse{}, exception.BadRequest(err.Error())
+	}
+
+	// Check if barcode is already used
+	_, err := s.ProductBatchRepo.FindByBarcode(req.Barcode)
+	if err == nil {
+		return domain.ProductBatchResponse{}, exception.InternalServerError("This barcode is already registered in another batch")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.ProductBatchResponse{}, err
+	}
+
+	// Check if master product exists
+	_, err = s.ProductRepo.FindById(req.ProductID)
 	if err != nil {
-		return nil, exception.InternalServerError("failed to get low stock products")
+		return domain.ProductBatchResponse{}, exception.NotFound("Master product not found")
 	}
 
-	var productResponses []*domain.ProductResponse
-	for _, product := range products {
-		productResponses = append(productResponses, helper.ToProductResponse(product, &product.Category))
+	expDate, err := helper.ParseDate(req.Exp)
+	if err != nil {
+		return domain.ProductBatchResponse{}, exception.BadRequest("Invalid expiry date format. Use YYYY-MM-DD")
 	}
 
-	return productResponses, nil
+	batch := domain.ProductBatch{
+		ProductID: req.ProductID,
+		Barcode:   req.Barcode,
+		Exp:       expDate,
+		Stock:     req.Stock,
+		DateAdded: time.Now(),
+	}
+
+	newBatch, err := s.ProductBatchRepo.Save(batch)
+	if err != nil {
+		return domain.ProductBatchResponse{}, err
+	}
+
+	return helper.ToProductBatchResponse(newBatch), nil
+}
+
+func (s *productServiceImpl) Delete(productID uint) error {
+	// Optional: Check if product has batches and prevent deletion if it does
+	return s.ProductRepo.Delete(productID)
+}
+
+func (s *productServiceImpl) FindById(productID uint) (domain.ProductResponse, error) {
+	product, err := s.ProductRepo.FindById(productID)
+	if err != nil {
+		return domain.ProductResponse{}, exception.NotFound("Product not found")
+	}
+	return helper.ToProductResponse(product), nil
+}
+
+func (s *productServiceImpl) FindAll() ([]domain.ProductResponse, error) {
+	products, err := s.ProductRepo.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return helper.ToProductResponses(products), nil
 }
