@@ -12,6 +12,7 @@ type Product struct {
 	Name       string
 	SKU        string `gorm:"unique"`
 	Price      uint
+	ImageURL   string // URL to the product image
 	CategoryID uint
 	DeletedAt  gorm.DeletedAt  `gorm:"index"`
 	Category   ProductCategory `gorm:"foreignKey:CategoryID"`
@@ -50,6 +51,7 @@ type ProductResponse struct {
 	Name            string                  `json:"name"`
 	SKU             string                  `json:"sku"`
 	Price           uint                    `json:"price"`
+	ImageURL        string                  `json:"image_url"`
 	TotalStock      uint                    `json:"total_stock"` // Agregasi dari semua batch
 	CategoryID      uint                    `json:"category_id"`
 	ProductCategory ProductCategoryResponse `json:"category"`

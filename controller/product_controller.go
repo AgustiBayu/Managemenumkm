@@ -24,4 +24,5 @@ type ProductController interface {
 	// New Batch Edit Handlers
 	EditBatchView(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	EditBatch(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+	UploadImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }

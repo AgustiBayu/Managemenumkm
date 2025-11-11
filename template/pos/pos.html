@@ -1,0 +1,146 @@
+{{define "title"}}{{.title}}{{end}}
+
+{{define "content"}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<link rel="stylesheet" href="/static/css/pos.css">
+
+<div class="pos-wrapper" data-toko-id="{{.TokoID}}" data-user-id="{{.UserID}}">
+    <!-- Header -->
+    <header class="pos-header">
+        <div class="header-left">
+            <div class="header-station">S01</div>
+            <div id="header-time" class="header-time"></div>
+        </div>
+        <div class="header-right">
+            <a href="#" class="header-link">Register Details</a>
+            <a href="#" class="header-link">Today's Sale</a>
+            <a href="#" class="header-link">Close Register</a>
+            <a href="/profile" class="header-link user-profile">
+                <i class="bi bi-person-circle"></i> Pro X Admin
+            </a>
+        </div>
+    </header>
+
+    <main class="pos-main-content">
+        <!-- Left Sidebar -->
+        <aside class="pos-sidebar">
+            <ul class="sidebar-nav">
+                <li><a href="/dashboard"><i class="bi bi-arrow-left-circle"></i></a></li>
+                <li><a href="#"><i class="bi bi-grid-3x3-gap-fill"></i></a></li>
+                <li><a href="#"><i class="bi bi-tag-fill"></i></a></li>
+                <li><a href="#"><i class="bi bi-people-fill"></i></a></li>
+                <li><a href="#"><i class="bi bi-folder-fill"></i></a></li>
+                <li><a href="#"><i class="bi bi-bar-chart-line-fill"></i></a></li>
+                <li><a href="#"><i class="bi bi-gear-fill"></i></a></li>
+            </ul>
+        </aside>
+
+        <!-- Transaction Panel -->
+        <section class="pos-transaction-panel">
+            <div class="transaction-header">
+                <div class="customer-select">
+                    <i class="bi bi-person"></i>
+                    <select id="customer-select">
+                        <option>Walk-in Client</option>
+                    </select>
+                    <button class="btn-add-customer"><i class="bi bi-plus"></i></button>
+                </div>
+                <input type="text" placeholder="Reference Note" class="reference-note">
+            </div>
+
+            <div class="cart-table-container">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cart-items-table-body">
+                        <!-- Cart items will be injected here by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="transaction-summary">
+                <div class="summary-item">
+                    <span>Total Items</span>
+                    <span id="summary-total-items">0 (0)</span>
+                </div>
+                <div class="summary-item">
+                    <span>Total</span>
+                    <span id="summary-total">Rp 0</span>
+                </div>
+                <div class="summary-item">
+                    <span>Discount</span>
+                    <input type="text" id="summary-discount" value="0">
+                </div>
+                <div class="summary-item">
+                    <span>Order Tax</span>
+                    <span id="summary-tax">Rp 0</span>
+                </div>
+                <div class="summary-total-payable">
+                    <span>Total Payable</span>
+                    <span id="summary-total-payable">Rp 0</span>
+                </div>
+            </div>
+
+            <div class="transaction-actions">
+                <button class="btn-action btn-hold"><i class="bi bi-pause-circle"></i> Hold</button>
+                <button class="btn-action btn-cancel"><i class="bi bi-x-circle"></i> Cancel</button>
+                <button class="btn-action btn-print-order"><i class="bi bi-printer"></i> Print Order</button>
+                <button class="btn-action btn-payment"><i class="bi bi-check-circle"></i> Payment</button>
+            </div>
+        </section>
+
+        <!-- Product Panel -->
+        <section class="pos-product-panel">
+            <div class="product-search-bar">
+                <i class="bi bi-search"></i>
+                <input type="text" id="product-search" placeholder="Search product by code or name, you can scan barcode too">
+            </div>
+            <div id="category-filter-bar" class="category-filter-bar">
+                <!-- Category buttons will be injected here by JS -->
+            </div>
+            <div id="product-grid" class="product-grid"></div>
+        </section>
+    </main>
+</div>
+
+<!-- TEMPLATES -->
+<template id="product-card-template">
+    <div class="product-card">
+        <img src="/static/image/placeholder.svg" alt="Product Image" class="product-image">
+        <div class="product-name">Nama Produk</div>
+        <div class="product-category">Kategori</div>
+        <div class="product-price">Rp 0</div>
+        <div class="product-stock">Stock: 0</div>
+    </div>
+</template>
+
+<template id="cart-item-row-template">
+    <tr>
+        <td class="product-info">
+            <span class="product-name">Product Name</span>
+            <span class="product-code">(P000000)</span>
+        </td>
+        <td class="product-price">Rp 0</td>
+        <td class="product-qty">
+            <div class="qty-controls">
+                <button class="btn-qty-decrease">-</button>
+                <span class="qty-value">1</span>
+                <button class="btn-qty-increase">+</button>
+            </div>
+        </td>
+        <td class="product-subtotal">Rp 0</td>
+        <td class="product-remove">
+            <button class="btn-remove-item"><i class="bi bi-trash"></i></button>
+        </td>
+    </tr>
+</template>
+
+<script src="/static/js/pos.js"></script>
+{{end}}

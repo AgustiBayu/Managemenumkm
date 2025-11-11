@@ -148,6 +148,18 @@ func (s *productServiceImpl) AddStock(req domain.AddStockStep2Request) (domain.P
 	return helper.ToProductBatchResponse(newBatch), nil
 }
 
+func (s *productServiceImpl) UpdateImageURL(ctx context.Context, productID uint, imageURL string) error {
+	product, err := s.ProductRepo.FindById(productID)
+	if err != nil {
+		return errors.New("product not found")
+	}
+
+	product.ImageURL = imageURL
+
+	_, err = s.ProductRepo.Update(product)
+	return err
+}
+
 func (s *productServiceImpl) Delete(productID uint) error {
 	// Optional: Check if product has batches and prevent deletion if it does
 	return s.ProductRepo.Delete(productID)

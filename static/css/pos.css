@@ -1,0 +1,303 @@
+/* ========== GENERAL LAYOUT ========== */
+.pos-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #f9fafb;
+    font-family: "Poppins", sans-serif;
+    overflow: hidden;
+}
+
+/* HEADER */
+.pos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #2c3e50;
+    color: white;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+}
+
+.header-left,
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-right a {
+    color: #ecf0f1;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.header-right a:hover {
+    color: #f39c12;
+}
+
+/* ========== MAIN SECTION ========== */
+.pos-main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* SIDEBAR */
+.pos-sidebar {
+    width: 60px;
+    background: #34495e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 1rem;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    margin: 1rem 0;
+}
+
+.sidebar-nav a {
+    color: #ecf0f1;
+    font-size: 1.3rem;
+    display: block;
+}
+
+.sidebar-nav a:hover {
+    color: #f39c12;
+}
+
+/* ========== TRANSACTION PANEL ========== */
+.pos-transaction-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    padding: 1rem;
+    overflow-y: auto;
+    min-width: 420px;
+    max-width: 460px;
+    border-right: 1px solid #e0e0e0;
+}
+
+.transaction-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.customer-select select {
+    border: 1px solid #ccc;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+/* Cart Table */
+.cart-table-container {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 1rem;
+}
+
+.cart-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.cart-table th, .cart-table td {
+    padding: 0.5rem;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.qty-controls button {
+    padding: 0 0.4rem;
+}
+
+/* Summary */
+.transaction-summary {
+    border-top: 1px solid #ddd;
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.transaction-summary .summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.3rem;
+}
+
+.summary-total-payable {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #2c3e50;
+    margin-top: 0.5rem;
+}
+
+/* Buttons */
+.transaction-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.8rem;
+}
+
+.btn-action {
+    flex: 1;
+    margin: 0 0.2rem;
+    padding: 0.6rem;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-hold { background: #95a5a6; }
+.btn-cancel { background: #e74c3c; }
+.btn-print-order { background: #3498db; }
+.btn-payment { background: #27ae60; }
+
+.btn-action:hover { opacity: 0.9; }
+
+/* ========== PRODUCT PANEL ========== */
+.pos-product-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.product-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ecf0f1;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+}
+
+.product-search-bar input {
+    border: none;
+    background: transparent;
+    outline: none;
+    flex: 1;
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* Product Card */
+.product-card {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 0.8rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.product-image {
+    width: 100%;
+    height: 100px;
+    object-fit: contain;
+}
+
+.product-name {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #2c3e50;
+}
+
+.product-category {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    margin-top: 0.2rem;
+}
+
+.product-price {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-top: 0.5rem;
+}
+
+.product-stock {
+    font-size: 0.75rem;
+    color: #95a5a6;
+    margin-top: 0.2rem;
+}
+
+/* Category Filter Bar */
+.category-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.category-filter-bar button {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #bdc3c7;
+    border-radius: 20px;
+    background-color: #fff;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.category-filter-bar button:hover {
+    background-color: #ecf0f1;
+}
+
+.category-filter-bar button.active {
+    background-color: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+/* ========== RESPONSIVE LAPTOP VIEW ========== */
+@media (max-width: 1440px) {
+    .pos-transaction-panel {
+        max-width: 400px;
+    }
+    .product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    }
+}
+
+@media (max-width: 1366px) {
+    .pos-wrapper {
+        font-size: 0.9rem;
+    }
+    .product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    .product-image {
+        height: 90px;
+    }
+}

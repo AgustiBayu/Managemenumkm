@@ -12,8 +12,34 @@ func DBSeed(db *gorm.DB) {
 	seedToko(db)
 	seedUsers(db)
 	seedCate(db)
+	seedProducts(db)
 }
+
+func seedProducts(db *gorm.DB) {
+	products := []domain.Product{
+		{Name: "Indomie Goreng", SKU: "IDO-GRG-001", Price: 3000, CategoryID: 1, ImageURL: "/static/image/123.png"},
+		{Name: "Susu Ultra Coklat", SKU: "ULT-CKL-250", Price: 7000, CategoryID: 1, ImageURL: "/static/image/2.jpeg"},
+		{Name: "Teh Pucuk Harum", SKU: "TPH-ORI-350", Price: 3500, CategoryID: 1, ImageURL: "/static/image/3.jpeg"},
+		{Name: "Chitato Sapi Panggang", SKU: "CHT-SPG-068", Price: 12000, CategoryID: 1, ImageURL: "/static/image/3.png"},
+	}
+
+	// Check if products already exist to avoid duplicates
+	var count int64
+	db.Model(&domain.Product{}).Count(&count)
+	if count == 0 {
+		for _, product := range products {
+			db.Create(&product)
+		}
+	}
+}
+
 func seedCate(db *gorm.DB) {
+	var count int64
+	db.Model(&domain.ProductCategory{}).Count(&count)
+	if count > 0 {
+		return
+	}
+
 	cates := []domain.ProductCategory{
 		{Category: "Makanan"},
 	}
@@ -22,6 +48,12 @@ func seedCate(db *gorm.DB) {
 	}
 }
 func seedToko(db *gorm.DB) {
+	var count int64
+	db.Model(&domain.Toko{}).Count(&count)
+	if count > 0 {
+		return
+	}
+
 	tokos := []domain.Toko{
 		{Name: "Mahameru 02", Address: "Sumberayu jln Untung Suropati. blok 02 Pasar Sapii"},
 	}

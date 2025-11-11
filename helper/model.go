@@ -13,17 +13,23 @@ func ToProductResponse(product domain.Product) domain.ProductResponse {
 		totalStock += batch.Stock
 	}
 
-	return domain.ProductResponse{
-		ID:         product.ID,
-		Name:       product.Name,
-		SKU:        product.SKU,
-		Price:      product.Price,
-		TotalStock: totalStock,
-		CategoryID: product.CategoryID,
-		ProductCategory: domain.ProductCategoryResponse{
+	var categoryResponse domain.ProductCategoryResponse
+	if product.Category.ID != 0 {
+		categoryResponse = domain.ProductCategoryResponse{
 			ID:       product.Category.ID,
 			Category: product.Category.Category,
-		},
+		}
+	}
+
+	return domain.ProductResponse{
+		ID:              product.ID,
+		Name:            product.Name,
+		SKU:             product.SKU,
+		Price:           product.Price,
+		ImageURL:        product.ImageURL,
+		TotalStock:      totalStock,
+		CategoryID:      product.CategoryID,
+		ProductCategory: categoryResponse,
 	}
 }
 
@@ -125,9 +131,43 @@ func ToTokoResponse(toko *domain.Toko) *domain.TokoResponse {
 }
 
 func ToTokoResponses(tokos []*domain.Toko) []*domain.TokoResponse {
+
 	var responses []*domain.TokoResponse
+
 	for _, toko := range tokos {
+
 		responses = append(responses, ToTokoResponse(toko))
+
 	}
+
 	return responses
+
+}
+
+
+
+// CheckoutRequest defines the structure for a checkout payload from the frontend
+
+type CheckoutRequest struct {
+
+	TokoID        uint       `json:"toko_id"`
+
+	UserID        uint       `json:"user_id"`
+
+	PaymentMethod string     `json:"payment_method"`
+
+	Items         []CartItem `json:"items"`
+
+}
+
+
+
+// CartItem defines a single item in the shopping cart
+
+type CartItem struct {
+
+	ProductID uint `json:"product_id"`
+
+	Quantity  int  `json:"quantity"`
+
 }

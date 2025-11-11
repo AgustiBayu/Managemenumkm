@@ -4,9 +4,15 @@ import (
 	"Managemenumkm/domain"
 	"Managemenumkm/helper"
 	"Managemenumkm/service"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"gorm.io/gorm"
@@ -257,5 +263,62 @@ func (c *ProductControllerImpl) EditBatch(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	http.Redirect(w, r, "/product/batches/"+strconv.Itoa(productID), http.StatusSeeOther)
-}
+			http.Redirect(w, r, "/product/batches/"+strconv.Itoa(productID), http.StatusSeeOther)
+	}
+	
+	func (c *ProductControllerImpl) UploadImage(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		// Get product ID from URL
+		productID, err := strconv.Atoi(ps.ByName("productId"))
+		if err != nil {
+			http.Error(w, "Invalid product ID", http.StatusBadRequest)
+			return
+		}
+	
+		// Parse multipart form, 10 MB max
+		r.ParseMultipartForm(10 << 20)
+	
+		file, handler, err := r.FormFile("image")
+		if err != nil {
+			http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+	
+		// Create a unique filename
+		ext := filepath.Ext(handler.Filename)
+		filename := fmt.Sprintf("%d-%d%s", productID, time.Now().UnixNano(), ext)
+		dstPath := filepath.Join("static", "image", "products", filename)
+	
+		// Ensure the destination directory exists
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Create destination file
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+	
+		// Copy uploaded file to destination
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	
+		// Update database
+		imageURL := "/" + dstPath // URL should be relative to the web root
+		if err := c.ProductService.UpdateImageURL(r.Context(), uint(productID), imageURL); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	
+		// Return success response
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"imageURL": imageURL})
+	}
+	

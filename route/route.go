@@ -9,7 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func NewRouter(userController controller.UserController, tokoController controller.TokoController, categoryController controller.ProductCategoryController, productController controller.ProductController) *httprouter.Router {
+func NewRouter(userController controller.UserController, tokoController controller.TokoController, categoryController controller.ProductCategoryController, productController controller.ProductController, posController controller.PosController) *httprouter.Router {
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.Dir("static"))
 
@@ -65,6 +65,14 @@ func NewRouter(userController controller.UserController, tokoController controll
 	router.GET("/product/batches/:productId", middleware.Authorize(productController.ListBatches, authAll...))
 	router.GET("/product/batch/edit/:batchId", middleware.Authorize(productController.EditBatchView, authAll...))
 	router.POST("/product/batch/edit/:batchId", middleware.Authorize(productController.EditBatch, authAll...))
+
+	// API route for image upload
+	router.POST("/api/products/:productId/image", middleware.Authorize(productController.UploadImage, authAll...))
+
+	// --- POS (Point of Sale) ---
+	router.GET("/pos", middleware.Authorize(posController.ShowPosPage, authAll...))
+	router.GET("/api/pos/products", middleware.Authorize(posController.GetProducts, authAll...))
+	router.POST("/api/pos/transactions", middleware.Authorize(posController.CreateTransaction, authAll...))
 
 	return router
 }
