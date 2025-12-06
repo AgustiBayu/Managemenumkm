@@ -17,7 +17,7 @@ func main() {
 
 	helper.InitJWT()
 	db := app.DB()
-	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{}, &domain.ProductBatch{}, &domain.Transaction{}, &domain.TransactionItem{})
+	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{}, &domain.ProductBatch{}, &domain.Transaction{}, &domain.TransactionItem{}, &domain.MemberTier{}, &domain.Member{}, &domain.MemberTransaction{}, &domain.PointRedemptionRule{})
 	helper.DBSeed(db)
 	validate := validator.New()
 
@@ -28,6 +28,8 @@ func main() {
 	proRepo := repository.NewProductRepository(db)
 	batchRepo := repository.NewProductBatchRepository(db)
 	transRepo := repository.NewTransactionRepository(db)
+	memberRepo := repository.NewMemberRepository(db)
+	memberTierRepo := repository.NewMemberTierRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, validate)
@@ -35,7 +37,8 @@ func main() {
 	cateService := service.NewProductCategoryService(cateRepo, validate)
 	batchService := service.NewProductBatchService(batchRepo, validate)
 	proService := service.NewProductService(proRepo, batchRepo, cateRepo, validate)
-	transService := service.NewTransactionService(db, transRepo, proRepo)
+	memberService := service.NewMemberService(memberRepo, memberTierRepo, validate)
+	transService := service.NewTransactionService(db, transRepo, proRepo, memberService)
 
 	// Controllers
 	userController := controller.NewUserController(userService, tokoService)
@@ -43,8 +46,9 @@ func main() {
 	cateController := controller.NewProductCategoryController(cateService)
 	proController := controller.NewProductController(proService, batchService, cateService)
 	posController := controller.NewPosController(transService, proService)
+	memberController := controller.NewMemberController(memberService)
 
-	router := route.NewRouter(userController, tokoController, cateController, proController, posController)
+	router := route.NewRouter(userController, tokoController, cateController, proController, posController, memberController)
 	println("Server running at https://localhost:8443")
 
 	// For production with HTTPS, use cert and key files

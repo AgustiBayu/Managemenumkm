@@ -1,0 +1,1485 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    const membersTableBody = document.getElementById('members-table-body');
+    const memberSearchInput = document.getElementById('member-search-input');
+    const tierFilter = document.getElementById('tier-filter');
+    const statusFilter = document.getElementById('status-filter');
+    const loadingState = document.getElementById('loading-state');
+    const emptyState = document.getElementById('empty-state');
+    const pagination = document.getElementById('pagination');
+
+    // Checkbox and selection elements
+    const selectAllCheckbox = document.getElementById('select-all');
+    const selectedActions = document.getElementById('selected-actions');
+    const defaultActions = document.getElementById('default-actions');
+    const selectedCount = document.getElementById('selected-count');
+    const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+    const exportSelectedBtn = document.getElementById('export-selected-btn');
+    const exportBtn = document.getElementById('export-btn');
+
+    // Modal elements
+    const memberModal = document.getElementById('member-modal');
+    const memberDetailsModal = document.getElementById('member-details-modal');
+    const memberForm = document.getElementById('member-form');
+
+    // Button elements
+    const addMemberBtn = document.getElementById('add-member-btn');
+    const memberModalClose = document.getElementById('member-modal-close');
+    const cancelMemberBtn = document.getElementById('cancel-member-btn');
+    const saveMemberBtn = document.getElementById('save-member-btn');
+    const detailsModalClose = document.getElementById('details-modal-close');
+    const closeDetailsBtn = document.getElementById('close-details-btn');
+
+    // --- State ---
+    let members = [];
+    let filteredMembers = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    const itemsPerPage = 10;
+    let editingMemberId = null;
+    let memberTiers = [];
+    let selectedMemberIds = new Set();
+
+    // --- Utility Functions ---
+    const formatCurrency = (amount) =>
+        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        return new Date(dateString).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
+    const generateMemberCode = () => {
+        const timestamp = Date.now().toString(36).toUpperCase();
+        const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+        return `MBR${timestamp}${random}`;
+    };
+
+    // --- Selection Management Functions ---
+    const updateSelectedUI = () => {
+        const count = selectedMemberIds.size;
+        selectedCount.textContent = `${count} selected`;
+
+        if (count > 0) {
+            selectedActions.style.display = 'flex';
+            defaultActions.style.display = 'none';
+        } else {
+            selectedActions.style.display = 'none';
+            defaultActions.style.display = 'block';
+        }
+
+        // Update select all checkbox state based on current page members
+        const currentPageMemberIds = new Set(
+            renderMembers.pageMembers?.map(m => String(m.ID || m.id)) || []
+        );
+
+        if (currentPageMemberIds.size === 0) {
+            // No members on current page
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            const allCurrentPageSelected = Array.from(currentPageMemberIds).every(id => selectedMemberIds.has(id));
+            const someCurrentPageSelected = Array.from(currentPageMemberIds).some(id => selectedMemberIds.has(id));
+
+            selectAllCheckbox.checked = allCurrentPageSelected;
+            selectAllCheckbox.indeterminate = !allCurrentPageSelected && someCurrentPageSelected;
+        }
+
+        // Update individual checkboxes to match the selection state
+        const checkboxes = document.querySelectorAll('.member-checkbox');
+        checkboxes.forEach(checkbox => {
+            const memberId = checkbox.value;
+            checkbox.checked = selectedMemberIds.has(memberId);
+        });
+
+        console.log('Updated UI - Selected count:', count, 'All page selected:', selectAllCheckbox.checked, 'Indeterminate:', selectAllCheckbox.indeterminate);
+    };
+
+    const toggleMemberSelection = (memberId) => {
+        const memberIdStr = String(memberId);
+        console.log('Toggling selection for member:', memberIdStr);
+
+        if (selectedMemberIds.has(memberIdStr)) {
+            selectedMemberIds.delete(memberIdStr);
+            console.log('Deselected member:', memberIdStr);
+        } else {
+            selectedMemberIds.add(memberIdStr);
+            console.log('Selected member:', memberIdStr);
+        }
+
+        console.log('Current selection:', Array.from(selectedMemberIds));
+        updateSelectedUI();
+    };
+
+    const toggleAllSelection = () => {
+        const currentPageMemberIds = new Set(
+            renderMembers.pageMembers?.map(m => String(m.ID || m.id)) || []
+        );
+
+        console.log('Toggle all selection, checked:', selectAllCheckbox.checked);
+        console.log('Page member IDs:', Array.from(currentPageMemberIds));
+
+        if (selectAllCheckbox.checked) {
+            // Add all current page members to selection
+            currentPageMemberIds.forEach(id => selectedMemberIds.add(id));
+            console.log('Added all page members to selection');
+        } else {
+            // Remove all current page members from selection
+            currentPageMemberIds.forEach(id => selectedMemberIds.delete(id));
+            console.log('Removed all page members from selection');
+        }
+
+        console.log('Selection after toggle all:', Array.from(selectedMemberIds));
+
+        // Update all visible checkboxes to match the select all state
+        const checkboxes = document.querySelectorAll('.member-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+
+        // Update the selected UI to reflect changes
+        updateSelectedUI();
+    };
+
+    const clearSelection = () => {
+        selectedMemberIds.clear();
+        updateSelectedUI();
+    };
+
+    const getSelectedMembers = () => {
+        console.log('Getting selected members, selection:', Array.from(selectedMemberIds));
+        return filteredMembers.filter(member => {
+            const memberIdStr = String(member.ID || member.id);
+            return selectedMemberIds.has(memberIdStr);
+        });
+    };
+
+    // --- API Functions ---
+    const fetchMembers = async (useFilters = false) => {
+        try {
+            showLoading();
+            
+            let url = '/api/members';
+            
+            // If using filters, add query parameters
+            if (useFilters) {
+                const params = new URLSearchParams();
+                
+                const searchTerm = memberSearchInput.value.trim();
+                const selectedTier = tierFilter.value.trim();
+                const selectedStatus = statusFilter.value.trim();
+                
+                if (searchTerm) params.append('search', searchTerm);
+                if (selectedTier) params.append('tier', selectedTier);
+                if (selectedStatus) params.append('status', selectedStatus);
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+            }
+            
+            const response = await fetch(url);
+            if (response.ok) {
+                members = await response.json();
+                
+                if (useFilters) {
+                    // When using API filters, the returned members are already filtered
+                    filteredMembers = [...members];
+                } else {
+                    // When not using API filters, apply client-side filters
+                    filteredMembers = [...members];
+                }
+                
+                updateStatistics();
+                
+                // When using filters, update status filter based on filtered data
+                // When not using filters, populate from all members
+                if (useFilters) {
+                    populateStatusFilterFromData(members);
+                } else {
+                    populateStatusFilter(); // Populate status filter from all fetched data
+                }
+                
+                if (!useFilters) {
+                    applyFilters();
+                } else {
+                    currentPage = 1;
+                    renderMembers();
+                }
+            } else {
+                throw new Error('Failed to fetch members');
+            }
+        } catch (error) {
+            console.error('Error fetching members:', error);
+            showError('Failed to load members');
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const fetchMemberTiers = async () => {
+        try {
+            const response = await fetch('/api/member-tiers');
+            if (response.ok) {
+                memberTiers = await response.json();
+                populateTierSelect();
+            }
+        } catch (error) {
+            console.error('Error fetching member tiers:', error);
+        }
+    };
+
+    const saveMember = async (memberData) => {
+        try {
+            const url = editingMemberId ? `/api/members/${editingMemberId}` : '/api/members';
+            const method = editingMemberId ? 'PUT' : 'POST';
+
+            console.log('Saving member:', { url, method, editingMemberId, memberData });
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(memberData)
+            });
+
+            if (response.ok) {
+                hideMemberModal();
+                showSuccess(editingMemberId ? 'Member updated successfully' : 'Member added successfully');
+
+                // Refresh the members data from API to show updated data
+                if (editingMemberId) {
+                    // If updating, get the updated member data
+                    const updatedMember = await response.json();
+                    console.log('Updated member received from server:', updatedMember);
+                    
+                    // Update the member in the local arrays
+                    const updateMemberInArray = (memberArray) => {
+                        const index = memberArray.findIndex(m => (m.ID || m.id) == (updatedMember.ID || updatedMember.id));
+                        if (index !== -1) {
+                            memberArray[index] = updatedMember;
+                            console.log('Updated member in array at index:', index);
+                        }
+                    };
+                    
+                    updateMemberInArray(members);
+                    updateMemberInArray(filteredMembers);
+                } else {
+                    // If creating new, refresh all members
+                    await fetchMembers();
+                }
+                // Re-apply filters and render
+                applyFilters();
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save member');
+            }
+        } catch (error) {
+            console.error('Error saving member:', error);
+            showError(error.message);
+        }
+    };
+
+    const deleteMember = async (memberId) => {
+        const memberIdStr = String(memberId);
+        if (!confirm('Are you sure you want to delete this member?')) return;
+
+        try {
+            console.log('Deleting member:', memberIdStr);
+            const response = await fetch(`/api/members/${memberIdStr}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                members = members.filter(m => String(m.ID || m.id) !== memberIdStr);
+                filteredMembers = filteredMembers.filter(m => String(m.ID || m.id) !== memberIdStr);
+                selectedMemberIds.delete(memberIdStr);
+                renderMembers();
+                showSuccess('Member deleted successfully');
+            } else {
+                throw new Error('Failed to delete member');
+            }
+        } catch (error) {
+            console.error('Error deleting member:', error);
+            showError('Failed to delete member');
+        }
+    };
+
+    const deleteSelectedMembers = async () => {
+        const selectedMembers = getSelectedMembers();
+        console.log('Selected members for deletion:', selectedMembers);
+
+        if (selectedMembers.length === 0) {
+            console.error('No members selected for deletion');
+            showError('No members selected');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete ${selectedMembers.length} member(s)?`)) return;
+
+        try {
+            const deletePromises = selectedMembers.map(member => {
+                const memberId = String(member.ID || member.id);
+                console.log('Creating delete promise for member:', memberId);
+                return fetch(`/api/members/${memberId}`, { method: 'DELETE' });
+            });
+
+            console.log('Executing delete promises...');
+            const responses = await Promise.all(deletePromises);
+            const failedDeletes = [];
+
+            responses.forEach((response, index) => {
+                if (!response.ok) {
+                    failedDeletes.push(selectedMembers[index].Name || selectedMembers[index].name);
+                }
+            });
+
+            if (failedDeletes.length === 0) {
+                // All deletions successful
+                const deletedIds = selectedMembers.map(m => String(m.ID || m.id));
+                members = members.filter(m => !deletedIds.includes(String(m.ID || m.id)));
+                filteredMembers = filteredMembers.filter(m => !deletedIds.includes(String(m.ID || m.id)));
+                deletedIds.forEach(id => selectedMemberIds.delete(id));
+                renderMembers();
+                showSuccess(`${selectedMembers.length} member(s) deleted successfully`);
+            } else {
+                showError(`Failed to delete ${failedDeletes.length} member(s): ${failedDeletes.join(', ')}`);
+            }
+        } catch (error) {
+            console.error('Error deleting selected members:', error);
+            showError('Failed to delete selected members');
+        }
+    };
+
+    // --- UI Functions ---
+    const showLoading = () => {
+        loadingState.style.display = 'block';
+        emptyState.style.display = 'none';
+        // Don't clear the table body if it contains server-rendered content
+        if (membersTableBody.children.length === 0 || membersTableBody.querySelector('.empty-state')) {
+            membersTableBody.innerHTML = '';
+        }
+    };
+
+    const hideLoading = () => {
+        loadingState.style.display = 'none';
+    };
+
+    const showError = (message) => {
+        alert('Error: ' + message);
+    };
+
+    const showSuccess = (message) => {
+        alert('Success: ' + message);
+    };
+
+    const updateStatistics = () => {
+        const stats = {
+            bronze: 0,
+            silver: 0,
+            gold: 0,
+            platinum: 0,
+            total: members.length
+        };
+
+        members.forEach(member => {
+            const tier = (member.MemberTier?.Name || member.memberTier?.name)?.toLowerCase() || 'bronze';
+            if (stats.hasOwnProperty(tier)) {
+                stats[tier]++;
+            } else {
+                stats.bronze++; // Default to bronze if no tier
+            }
+        });
+
+        document.getElementById('bronze-count').textContent = stats.bronze;
+        document.getElementById('silver-count').textContent = stats.silver;
+        document.getElementById('gold-count').textContent = stats.gold;
+        document.getElementById('platinum-count').textContent = stats.platinum;
+        document.getElementById('total-members').textContent = stats.total;
+    };
+
+    const applyFilters = () => {
+        // Clear selection when filters change to avoid confusion
+        clearSelection();
+
+        let filtered = [...members];
+
+        // Get filter values
+        const searchTerm = memberSearchInput.value.toLowerCase().trim();
+        const selectedTier = tierFilter.value.trim();
+        const selectedStatus = statusFilter.value.trim();
+
+        console.log('Applying filters:', {
+            search: searchTerm,
+            tier: selectedTier,
+            status: selectedStatus,
+            totalMembers: members.length
+        });
+
+        // Search filter
+        if (searchTerm) {
+            filtered = filtered.filter(member =>
+                (member.Name || member.name)?.toLowerCase().includes(searchTerm) ||
+                (member.Phone || member.phone)?.toLowerCase().includes(searchTerm) ||
+                (member.MemberCode || member.memberCode)?.toLowerCase().includes(searchTerm) ||
+                (member.Email || member.email)?.toLowerCase().includes(searchTerm)
+            );
+            console.log('After search filter:', filtered.length);
+        }
+
+        // Tier filter - only apply if value is not empty
+        if (selectedTier !== '') {
+            console.log('Filtering by tier:', selectedTier);
+            console.log('Member data sample:', members.slice(0, 2).map(m => ({
+                name: m.name || m.Name,
+                tier: m.MemberTier?.Name || m.memberTier?.name || m.memberTier || 'N/A'
+            })));
+
+            filtered = filtered.filter(member => {
+                // Handle different possible data structures for tier
+                let memberTierName = '';
+                if (member.MemberTier?.Name) {
+                    memberTierName = member.MemberTier.Name;
+                } else if (member.memberTier?.name) {
+                    memberTierName = member.memberTier.name;
+                } else if (member.memberTier && typeof member.memberTier === 'string') {
+                    memberTierName = member.memberTier;
+                } else if (typeof member.MemberTier === 'string') {
+                    memberTierName = member.MemberTier;
+                }
+
+                // Convert both to lowercase for case-insensitive comparison
+                const tierMatch = memberTierName.toLowerCase() === selectedTier.toLowerCase();
+                console.log(`Member ${member.name || member.Name} tier: "${memberTierName}" vs filter: "${selectedTier}" = ${tierMatch}`);
+                return tierMatch;
+            });
+            console.log('After tier filter:', filtered.length);
+        }
+
+        // Status filter - only apply if value is not empty
+        if (selectedStatus !== '') {
+            console.log('Filtering by status:', selectedStatus);
+            filtered = filtered.filter(member => {
+                const memberStatus = (member.Status || member.status || '').toLowerCase();
+                const statusMatch = memberStatus === selectedStatus.toLowerCase();
+                console.log(`Member ${member.name || member.Name} status: "${memberStatus}" vs filter: "${selectedStatus}" = ${statusMatch}`);
+                return statusMatch;
+            });
+            console.log('After status filter:', filtered.length);
+        }
+
+        console.log('Final filtered members count:', filtered.length);
+        filteredMembers = filtered;
+        
+        // Update status filter options based on filtered data when using client-side filtering
+        // This ensures the status filter reflects the current data context
+        if (searchTerm || selectedTier) {
+            // If search or tier filter is applied, update status filter based on filtered results
+            populateStatusFilterFromData(filtered);
+        }
+        
+        currentPage = 1;
+        renderMembers();
+    };
+
+    // Enhanced applyFilters that uses API for better performance
+    const applyFiltersWithAPI = async () => {
+        const searchTerm = memberSearchInput.value.trim();
+        const selectedTier = tierFilter.value.trim();
+        const selectedStatus = statusFilter.value.trim();
+
+        console.log('Applying filters via API:', {
+            search: searchTerm,
+            tier: selectedTier,
+            status: selectedStatus
+        });
+
+        // Clear selection when filters change to avoid confusion
+        clearSelection();
+
+        // Use API filtering if any filter is applied
+        if (searchTerm || selectedTier || selectedStatus) {
+            await fetchMembers(true); // true = use filters
+        } else {
+            // If no filters, fetch all members and apply client-side filtering
+            await fetchMembers(false);
+        }
+    };
+
+    const renderMembers = () => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageMembers = filteredMembers.slice(startIndex, endIndex);
+
+        // Store page members for selection management
+        renderMembers.pageMembers = pageMembers;
+
+        if (pageMembers.length === 0 && filteredMembers.length === 0) {
+            membersTableBody.innerHTML = '';
+            emptyState.style.display = 'block';
+            pagination.style.display = 'none';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        pagination.style.display = 'flex';
+
+        membersTableBody.innerHTML = pageMembers.map(member => {
+            const memberId = String(member.ID || member.id);
+            const isSelected = selectedMemberIds.has(memberId);
+            const memberName = member.Name || member.name;
+            const memberCode = member.MemberCode || member.memberCode;
+            const memberPhone = member.Phone || member.phone;
+            const memberEmail = member.Email || member.email;
+            const memberTierName = member.MemberTier?.Name || member.memberTier?.name;
+            const memberTotalPoints = member.TotalPoints || member.totalPoints;
+            const memberTotalSpent = member.TotalSpent || member.totalSpent;
+            const memberJoinedDate = member.JoinedDate || member.joinedDate;
+            const memberStatus = member.Status || member.status;
+
+            return `
+                <tr>
+                    <td>
+                        <input type="checkbox" class="member-checkbox"
+                               value="${memberId}"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="window.toggleMemberSelection('${memberId}')">
+                    </td>
+                    <td>
+                        <div class="member-info">
+                            <div class="member-avatar">${memberName?.charAt(0).toUpperCase() || 'M'}</div>
+                            <div class="member-details">
+                                <div class="member-name">${memberName || 'N/A'}</div>
+                                <div class="member-code">${memberCode || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div>${memberPhone || '-'}</div>
+                        <div style="font-size: 12px; color: #7f8c8d;">${memberEmail || '-'}</div>
+                    </td>
+                    <td>
+                        <span class="member-tier-badge tier-${memberTierName?.toLowerCase() || 'bronze'}">
+                            ${memberTierName || 'Bronze'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="points-display">${memberTotalPoints || 0} pts</span>
+                    </td>
+                    <td>${formatCurrency(memberTotalSpent || 0)}</td>
+                    <td>${formatDate(memberJoinedDate)}</td>
+                    <td>
+                        <span class="status-badge status-${memberStatus?.toLowerCase() || 'active'}">
+                            ${memberStatus || 'Active'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-action btn-view" onclick="viewMember(${memberId})" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn-action btn-edit" onclick="editMember(${memberId})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn-action btn-delete" onclick="deleteMember(${memberId})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        updatePagination();
+        updateSelectedUI();
+    };
+
+    const updatePagination = () => {
+        totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages || 1;
+
+        document.getElementById('prev-page').disabled = currentPage <= 1;
+        document.getElementById('next-page').disabled = currentPage >= totalPages;
+    };
+
+    const populateTierSelect = () => {
+        const tierSelect = document.getElementById('member-tier');
+
+        // Only populate if select is empty (not already populated by template)
+        if (tierSelect.options.length <= 1) {
+            memberTiers.forEach(tier => {
+                const option = document.createElement('option');
+                option.value = tier.ID || tier.id;
+                option.textContent = tier.Name || tier.name;
+                tierSelect.appendChild(option);
+            });
+        }
+    };
+
+    const populateStatusFilter = () => {
+        populateStatusFilterFromData(members);
+    };
+
+    const populateStatusFilterFromData = (dataToUse) => {
+        const statusFilter = document.getElementById('status-filter');
+
+        // Store current selected value to restore if it still exists
+        const currentValue = statusFilter.value;
+
+        // Clear existing options except "All Status"
+        statusFilter.innerHTML = '<option value="">All Status</option>';
+
+        // Get unique status values from the provided data
+        const memberStatuses = dataToUse.map(member => {
+            const status = (member.Status || member.status || 'active');
+            console.log(`Member ${member.name || member.Name} has status: "${status}"`);
+            return status.toLowerCase();
+        });
+
+        const uniqueStatuses = [...new Set(memberStatuses)].sort();
+
+        console.log('All member statuses from provided data:', memberStatuses);
+        console.log('Unique statuses for filter:', uniqueStatuses);
+
+        // Add status options
+        uniqueStatuses.forEach(status => {
+            if (status) {
+                const option = document.createElement('option');
+                option.value = status;
+                option.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                statusFilter.appendChild(option);
+            }
+        });
+
+        // Restore the previously selected value if it still exists in the new options
+        if (currentValue && uniqueStatuses.includes(currentValue.toLowerCase())) {
+            statusFilter.value = currentValue;
+        }
+
+        console.log('Populated status filter with options:', uniqueStatuses);
+    };
+
+    // --- Modal Functions ---
+    const showMemberModal = (member = null) => {
+        console.log('Showing member modal:', member);
+
+        // Set editing ID and title
+        editingMemberId = member ? (member.ID || member.id) : null;
+        document.getElementById('modal-title').textContent = member ? 'Edit Member' : 'Add New Member';
+
+        if (member) {
+            // Populate form with member data (support both JSON and Go field names)
+            document.getElementById('member-name').value = member.Name || member.name || '';
+            document.getElementById('member-phone').value = member.Phone || member.phone || '';
+            document.getElementById('member-email').value = member.Email || member.email || '';
+
+            // Set tier value - ensure we have the tiers populated first
+            const tierSelect = document.getElementById('member-tier');
+
+            // Debug logging
+            console.log('Member data received:', member);
+            console.log('Available tiers:', memberTiers);
+
+            // Get tier ID from member data - check multiple possible field names
+            let memberTierId = null;
+            if (member.MemberTier?.ID) {
+                memberTierId = member.MemberTier.ID;
+            } else if (member.MemberTierID) {
+                memberTierId = member.MemberTierID;
+            } else if (member.memberTier?.id) {
+                memberTierId = member.memberTier.id;
+            } else if (member.memberTierID) {
+                memberTierId = member.memberTierID;
+            }
+            
+            console.log('Member Tier ID:', memberTierId);
+
+            // Clear the select first
+            tierSelect.value = '';
+            
+            // Set the value if we have a valid tier ID
+            if (memberTierId && memberTierId !== 0) {
+                tierSelect.value = memberTierId;
+                console.log('Set tier select value to:', tierSelect.value);
+                
+                // Verify the value was set correctly
+                if (tierSelect.value !== String(memberTierId)) {
+                    console.warn('Failed to set tier select value. Available options:');
+                    for (let i = 0; i < tierSelect.options.length; i++) {
+                        console.warn(`Option ${i}: value="${tierSelect.options[i].value}", text="${tierSelect.options[i].text}"`);
+                    }
+                }
+            } else {
+                console.log('No tier ID found, leaving as default');
+            }
+
+            // Set status value
+            const status = member.Status || member.status || 'active';
+            document.getElementById('member-status').value = status.toLowerCase();
+
+            document.getElementById('member-address').value = member.Address || member.address || '';
+            document.getElementById('member-birthday').value = member.Birthday || member.birthday || '';
+            document.getElementById('member-gender').value = member.Gender || member.gender || '';
+            document.getElementById('member-notes').value = member.Notes || member.notes || '';
+        } else {
+            memberForm.reset();
+            // Set default status for new member
+            document.getElementById('member-status').value = 'active';
+        }
+
+        console.log('Editing member ID:', editingMemberId);
+        memberModal.style.display = 'block';
+    };
+
+    const hideMemberModal = () => {
+        memberModal.style.display = 'none';
+        memberForm.reset();
+        editingMemberId = null;
+    };
+
+    const viewMember = async (memberId) => {
+        try {
+            console.log('Fetching member details for ID:', memberId);
+            const response = await fetch(`/api/members/${memberId}`);
+            if (response.ok) {
+                const member = await response.json();
+                console.log('Member details received:', member);
+                showMemberDetails(member);
+            } else {
+                throw new Error('Failed to load member details');
+            }
+        } catch (error) {
+            console.error('Error loading member details:', error);
+            showError('Failed to load member details');
+        }
+    };
+
+    const showMemberDetails = (member) => {
+        console.log('Showing member details:', member);
+
+        // Update profile information
+        document.getElementById('detail-member-name').textContent = member.Name || member.name || 'N/A';
+        document.getElementById('detail-member-code').textContent = `Code: ${member.MemberCode || member.memberCode || 'N/A'}`;
+        const tierName = member.MemberTier?.Name || member.memberTier?.name || 'Bronze';
+        document.getElementById('detail-member-tier').textContent = tierName;
+        document.getElementById('detail-member-tier').className = `member-badge tier-${tierName.toLowerCase()}`;
+
+        // Update statistics
+        document.getElementById('detail-total-points').textContent = `${member.TotalPoints || member.totalPoints || 0} pts`;
+        document.getElementById('detail-total-spent').textContent = formatCurrency(member.TotalSpent || member.totalSpent || 0);
+        document.getElementById('detail-total-transactions').textContent = member.TotalTransactions || member.totalTransactions || '0';
+        document.getElementById('detail-join-date').textContent = formatDate(member.JoinedDate || member.joinedDate);
+
+        // Update contact information
+        document.getElementById('detail-phone').textContent = member.Phone || member.phone || '-';
+        document.getElementById('detail-email').textContent = member.Email || member.email || '-';
+        document.getElementById('detail-address').textContent = member.Address || member.address || '-';
+
+        // Set member data for actions
+        document.getElementById('edit-member-btn').onclick = () => {
+            hideMemberDetails();
+            editMember(member.ID || member.id);
+        };
+
+        document.getElementById('use-in-pos-btn').onclick = () => {
+            // Store member in sessionStorage for POS
+            sessionStorage.setItem('selectedMember', JSON.stringify(member));
+            window.location.href = '/pos';
+        };
+
+        // Load points history
+        if (member.ID || member.id) {
+            loadMemberPointsHistory(member.ID || member.id);
+        }
+
+        memberDetailsModal.style.display = 'block';
+    };
+
+    const hideMemberDetails = () => {
+        memberDetailsModal.style.display = 'none';
+    };
+
+    const loadMemberPointsHistory = async (memberId) => {
+        try {
+            const response = await fetch(`/api/member-transactions/${memberId}?limit=20`);
+            if (response.ok) {
+                const transactions = await response.json();
+                renderPointsHistory(transactions);
+            }
+        } catch (error) {
+            console.error('Error loading points history:', error);
+        }
+    };
+
+    const renderPointsHistory = (transactions) => {
+        const historyList = document.getElementById('points-history-list');
+
+        if (transactions.length === 0) {
+            historyList.innerHTML = '<div class="history-item"><div class="history-info"><div class="history-description">No transactions found</div></div></div>';
+            return;
+        }
+
+        historyList.innerHTML = transactions.map(transaction => `
+            <div class="history-item">
+                <div class="history-info">
+                    <div class="history-description">${transaction.description || 'Points transaction'}</div>
+                    <div class="history-date">${formatDate(transaction.createdAt)}</div>
+                </div>
+                <div class="history-points ${transaction.points >= 0 ? 'positive' : 'negative'}">
+                    ${transaction.points >= 0 ? '+' : ''}${transaction.points} pts
+                </div>
+            </div>
+        `).join('');
+    };
+
+    // --- Event Listeners ---
+    addMemberBtn.addEventListener('click', () => showMemberModal());
+
+    memberModalClose.addEventListener('click', hideMemberModal);
+    cancelMemberBtn.addEventListener('click', hideMemberModal);
+    detailsModalClose.addEventListener('click', hideMemberDetails);
+    closeDetailsBtn.addEventListener('click', hideMemberDetails);
+
+    // Event delegation for action buttons
+    membersTableBody.addEventListener('click', (e) => {
+        const button = e.target.closest('.btn-action');
+        if (!button) return;
+
+        const memberId = button.getAttribute('data-member-id');
+        if (!memberId) return;
+
+        if (button.classList.contains('btn-view')) {
+            viewMember(parseInt(memberId));
+        } else if (button.classList.contains('btn-edit')) {
+            editMember(parseInt(memberId));
+        } else if (button.classList.contains('btn-delete')) {
+            deleteMember(parseInt(memberId));
+        }
+    });
+
+    memberForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const tierId = document.getElementById('member-tier').value;
+        const memberData = {
+            name: document.getElementById('member-name').value.trim(),
+            phone: document.getElementById('member-phone').value.trim(),
+            email: document.getElementById('member-email').value.trim(),
+            address: document.getElementById('member-address').value.trim(),
+            birthday: document.getElementById('member-birthday').value,
+            gender: document.getElementById('member-gender').value,
+            status: document.getElementById('member-status').value,
+            notes: document.getElementById('member-notes').value.trim()
+        };
+
+        // Handle tier ID properly - ensure it's sent as MemberTierID for backend compatibility
+        if (tierId && tierId !== '') {
+            memberData.MemberTierID = parseInt(tierId);
+        } else if (!editingMemberId) {
+            // For new members, don't send MemberTierID to let backend assign default
+            delete memberData.MemberTierID;
+        }
+
+        console.log('Tier ID from dropdown:', tierId);
+        console.log('Editing member ID:', editingMemberId);
+        console.log('Complete member data being sent:', JSON.stringify(memberData, null, 2));
+
+        if (!memberData.name) {
+            showError('Member name is required');
+            return;
+        }
+
+        if (!memberData.phone) {
+            showError('Phone number is required');
+            return;
+        }
+
+        saveMember(memberData);
+    });
+
+    // Search and filter listeners - use API-based filtering
+    memberSearchInput.addEventListener('input', debounce(applyFiltersWithAPI, 300));
+    tierFilter.addEventListener('change', applyFiltersWithAPI);
+    statusFilter.addEventListener('change', applyFiltersWithAPI);
+
+    document.getElementById('btn-search').addEventListener('click', applyFiltersWithAPI);
+    document.getElementById('clear-filters').addEventListener('click', () => {
+        console.log('Clearing all filters');
+        memberSearchInput.value = '';
+        tierFilter.value = '';
+        statusFilter.value = '';
+        clearSelection(); // Also clear any selections
+        // Fetch all members without filters
+        fetchMembers(false);
+    });
+
+    // Checkbox and selection event listeners
+    selectAllCheckbox.addEventListener('change', toggleAllSelection);
+    deleteSelectedBtn.addEventListener('click', deleteSelectedMembers);
+    exportSelectedBtn.addEventListener('click', () => {
+        const selectedMembers = getSelectedMembers();
+        if (selectedMembers.length === 0) {
+            showError('No members selected for export');
+            return;
+        }
+        const csvContent = generateMemberCSV(selectedMembers);
+        downloadCSV(csvContent, 'selected_members_export.csv');
+        showSuccess(`Exported ${selectedMembers.length} member(s)`);
+    });
+
+    exportBtn.addEventListener('click', () => {
+        const csvContent = generateMemberCSV();
+        downloadCSV(csvContent, 'all_members_export.csv');
+        showSuccess(`Exported ${filteredMembers.length} member(s)`);
+    });
+
+    // Add debug function to manually test filters
+    window.testFilters = () => {
+        console.log('Testing filters...');
+        console.log('Current tier filter value:', tierFilter.value);
+        console.log('Current status filter value:', statusFilter.value);
+        console.log('Current search value:', memberSearchInput.value);
+        console.log('Members count before filter:', members.length);
+        applyFilters();
+    };
+
+    // Add debug function to toggle all checkboxes manually
+    window.toggleAllCheckboxes = (checked) => {
+        const checkboxes = document.querySelectorAll('.member-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checked;
+            if (checked) {
+                selectedMemberIds.add(cb.value);
+            } else {
+                selectedMemberIds.delete(cb.value);
+            }
+        });
+        updateSelectedUI();
+    };
+
+    // --- Import Members Functionality ---
+    const importMembersModal = document.getElementById('import-members-modal');
+    const importModalClose = document.getElementById('import-modal-close');
+    const cancelImportBtn = document.getElementById('cancel-import-btn');
+    const importFileInput = document.getElementById('import-file-input');
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const uploadPlaceholder = document.getElementById('upload-placeholder');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+    const previewImportBtn = document.getElementById('preview-import-btn');
+    const confirmImportBtn = document.getElementById('confirm-import-btn');
+    const importPreview = document.getElementById('import-preview');
+    const totalRowsSpan = document.getElementById('total-rows');
+    const validRowsSpan = document.getElementById('valid-rows');
+    const invalidRowsSpan = document.getElementById('invalid-rows');
+    const previewErrors = document.getElementById('preview-errors');
+
+    let importData = null;
+    let parsedMembers = [];
+
+    // Show import modal
+    document.getElementById('import-members-btn').addEventListener('click', () => {
+        resetImportModal();
+        importMembersModal.style.display = 'block';
+    });
+
+    // Close import modal
+    importModalClose.addEventListener('click', hideImportModal);
+    cancelImportBtn.addEventListener('click', hideImportModal);
+
+    // File upload handling
+    fileUploadArea.addEventListener('click', () => {
+        importFileInput.click();
+    });
+
+    // Drag and drop handling
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelection(files[0]);
+        }
+    });
+
+    importFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelection(e.target.files[0]);
+        }
+    });
+
+    removeFileBtn.addEventListener('click', () => {
+        resetFileSelection();
+    });
+
+    previewImportBtn.addEventListener('click', previewImportData);
+    confirmImportBtn.addEventListener('click', confirmImport);
+
+    function hideImportModal() {
+        importMembersModal.style.display = 'none';
+        resetImportModal();
+    }
+
+    function resetImportModal() {
+        resetFileSelection();
+        importPreview.style.display = 'none';
+        previewImportBtn.disabled = true;
+        confirmImportBtn.disabled = true;
+        parsedMembers = [];
+        importData = null;
+        previewErrors.innerHTML = '';
+    }
+
+    function resetFileSelection() {
+        importFileInput.value = '';
+        uploadPlaceholder.style.display = 'block';
+        fileInfo.style.display = 'none';
+        previewImportBtn.disabled = true;
+        confirmImportBtn.disabled = true;
+        importPreview.style.display = 'none';
+        parsedMembers = [];
+        importData = null;
+    }
+
+    function handleFileSelection(file) {
+        // Validate file type
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            showError('Please select a CSV file');
+            return;
+        }
+
+        // Validate file size (10MB max)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            showError('File size must be less than 10MB');
+            return;
+        }
+
+        // Display file info
+        fileName.textContent = file.name;
+        uploadPlaceholder.style.display = 'none';
+        fileInfo.style.display = 'flex';
+
+        // Read file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const csvData = e.target.result;
+                importData = csvData;
+                previewImportBtn.disabled = false;
+            } catch (error) {
+                showError('Failed to read the CSV file');
+                resetFileSelection();
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function parseCSV(csvText) {
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) {
+            throw new Error('CSV file must contain at least a header row and one data row');
+        }
+
+        // Parse header
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+        // Expected headers (case-insensitive)
+        const expectedHeaders = ['name', 'phone', 'email', 'address', 'birthday', 'gender', 'tier', 'status', 'notes'];
+        const headerMap = {};
+
+        // Create mapping between actual headers and expected headers
+        headers.forEach((header, index) => {
+            const lowerHeader = header.toLowerCase();
+            const expectedIndex = expectedHeaders.findIndex(h => h === lowerHeader);
+            if (expectedIndex !== -1) {
+                headerMap[expectedHeaders[expectedIndex]] = index;
+            }
+        });
+
+        // Validate required headers
+        if (headerMap['name'] === undefined || headerMap['phone'] === undefined) {
+            throw new Error('CSV must contain "Name" and "Phone" columns');
+        }
+
+        // Parse data rows
+        const members = [];
+        const errors = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            try {
+                // Handle quoted CSV values
+                const values = parseCSVLine(line);
+
+                if (values.length !== headers.length) {
+                    errors.push(`Row ${i + 1}: Column count mismatch`);
+                    continue;
+                }
+
+                const member = {
+                    name: values[headerMap['name']]?.trim() || '',
+                    phone: values[headerMap['phone']]?.trim() || '',
+                    email: values[headerMap['email']]?.trim() || '',
+                    address: values[headerMap['address']]?.trim() || '',
+                    birthday: values[headerMap['birthday']]?.trim() || '',
+                    gender: values[headerMap['gender']]?.trim() || '',
+                    tier: values[headerMap['tier']]?.trim() || '',
+                    status: values[headerMap['status']]?.trim() || 'active',
+                    notes: values[headerMap['notes']]?.trim() || ''
+                };
+
+                // Validate required fields
+                if (!member.name) {
+                    errors.push(`Row ${i + 1}: Name is required`);
+                    continue;
+                }
+
+                if (!member.phone) {
+                    errors.push(`Row ${i + 1}: Phone is required`);
+                    continue;
+                }
+
+                // Validate phone format (basic validation)
+                if (!validatePhoneNumber(member.phone)) {
+                    errors.push(`Row ${i + 1}: Invalid phone number format`);
+                    continue;
+                }
+
+                // Validate email format if provided
+                if (member.email && !validateEmail(member.email)) {
+                    errors.push(`Row ${i + 1}: Invalid email format`);
+                    continue;
+                }
+
+                // Validate gender if provided
+                if (member.gender && ['male', 'female', 'other'].indexOf(member.gender.toLowerCase()) === -1) {
+                    errors.push(`Row ${i + 1}: Gender must be male, female, or other`);
+                    continue;
+                }
+
+                // Normalize data
+                member.phone = normalizePhoneNumber(member.phone);
+                member.gender = member.gender.toLowerCase();
+                member.status = member.status.toLowerCase();
+                member.tier = member.tier.toLowerCase();
+
+                members.push(member);
+            } catch (error) {
+                errors.push(`Row ${i + 1}: ${error.message}`);
+            }
+        }
+
+        return { members, errors };
+    }
+
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+
+        result.push(current.trim());
+        return result;
+    }
+
+    function validatePhoneNumber(phone) {
+        // Basic validation for Indonesian phone numbers
+        const cleaned = phone.replace(/[^\d+]/g, '');
+        return cleaned.length >= 10 && cleaned.length <= 15;
+    }
+
+    function normalizePhoneNumber(phone) {
+        // Normalize phone number format
+        let cleaned = phone.replace(/[^\d]/g, '');
+
+        // Add +62 prefix if starts with 0
+        if (cleaned.startsWith('0')) {
+            cleaned = '62' + cleaned.substring(1);
+        } else if (cleaned.startsWith('62')) {
+            cleaned = '62' + cleaned.substring(2);
+        } else if (!cleaned.startsWith('62')) {
+            cleaned = '62' + cleaned;
+        }
+
+        return '+' + cleaned;
+    }
+
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    function previewImportData() {
+        if (!importData) {
+            showError('No file selected');
+            return;
+        }
+
+        try {
+            const result = parseCSV(importData);
+            parsedMembers = result.members;
+
+            // Update preview stats
+            const totalRows = importData.trim().split('\n').length - 1; // Exclude header
+            totalRowsSpan.textContent = totalRows;
+            validRowsSpan.textContent = result.members.length;
+            invalidRowsSpan.textContent = result.errors.length;
+
+            // Show errors if any
+            if (result.errors.length > 0) {
+                previewErrors.innerHTML = result.errors.map(error =>
+                    `<div class="error-item">${error}</div>`
+                ).join('');
+            } else {
+                previewErrors.innerHTML = '';
+            }
+
+            // Show preview section
+            importPreview.style.display = 'block';
+
+            // Enable confirm button if there are valid members
+            confirmImportBtn.disabled = result.members.length === 0;
+        } catch (error) {
+            showError('Failed to parse CSV: ' + error.message);
+        }
+    }
+
+    async function confirmImport() {
+        if (parsedMembers.length === 0) {
+            showError('No valid members to import');
+            return;
+        }
+
+        const skipDuplicates = document.getElementById('skip-duplicates').checked;
+        const updateExisting = document.getElementById('update-existing').checked;
+
+        try {
+            confirmImportBtn.disabled = true;
+            confirmImportBtn.innerHTML = '<i class="bi bi-spinner"></i> Importing...';
+
+            const response = await fetch('/api/members/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    members: parsedMembers,
+                    skipDuplicates: skipDuplicates,
+                    updateExisting: updateExisting
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showSuccess(`Successfully imported ${result.imported} member(s). ${result.skipped || 0} skipped. ${result.errors || 0} failed.`);
+                hideImportModal();
+                // Refresh member list
+                await fetchMembers();
+            } else {
+                showError('Import failed: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            showError('Import failed: ' + error.message);
+        } finally {
+            confirmImportBtn.disabled = false;
+            confirmImportBtn.innerHTML = '<i class="bi bi-upload"></i> Import Members';
+        }
+    }
+
+    // Pagination listeners
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderMembers();
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderMembers();
+        }
+    });
+
+    // Modal close on outside click
+    window.addEventListener('click', (e) => {
+        if (e.target === memberModal) hideMemberModal();
+        if (e.target === memberDetailsModal) hideMemberDetails();
+        if (e.target === importMembersModal) hideImportModal();
+    });
+
+    // --- Utility Functions for Export ---
+    const generateMemberCSV = (membersToExport = null) => {
+        const dataToExport = membersToExport || filteredMembers;
+        const headers = ['Name', 'Code', 'Phone', 'Email', 'Address', 'Birthday', 'Gender', 'Tier', 'Points', 'Total Spent', 'Join Date', 'Status', 'Notes'];
+        const rows = dataToExport.map(member => [
+            member.Name || member.name || '',
+            member.MemberCode || member.memberCode || '',
+            member.Phone || member.phone || '',
+            member.Email || member.email || '',
+            member.Address || member.address || '',
+            formatDate(member.Birthday || member.birthday) || '',
+            member.Gender || member.gender || '',
+            member.MemberTier?.Name || member.memberTier?.name || 'Bronze',
+            member.TotalPoints || member.totalPoints || 0,
+            member.TotalSpent || member.totalSpent || 0,
+            formatDate(member.JoinedDate || member.joinedDate),
+            member.Status || member.status || 'Active',
+            member.Notes || member.notes || ''
+        ]);
+
+        return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    };
+
+    const downloadCSV = (content, filename) => {
+        const blob = new Blob([content], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    // --- Global Functions for onclick handlers ---
+    window.toggleMemberSelection = toggleMemberSelection;
+    window.viewMember = async (memberId) => {
+        try {
+            console.log('Loading member for view, ID:', memberId);
+            const response = await fetch(`/api/members/${memberId}`);
+            if (response.ok) {
+                const member = await response.json();
+                console.log('Member data for view:', member);
+                showMemberDetails(member);
+            } else {
+                const errorText = await response.text();
+                console.error('Failed to load member details:', errorText);
+                alert('Failed to load member details');
+            }
+        } catch (error) {
+            console.error('Error loading member details:', error);
+            alert('Failed to load member details');
+        }
+    };
+
+    window.editMember = async (memberId) => {
+        try {
+            console.log('Loading member for edit, ID:', memberId);
+
+            // Ensure member tiers are loaded first
+            if (memberTiers.length === 0) {
+                console.log('Member tiers not loaded, fetching...');
+                await fetchMemberTiers();
+            }
+
+            const response = await fetch(`/api/members/${memberId}`);
+            if (response.ok) {
+                const member = await response.json();
+                console.log('Member data for edit:', member);
+                showMemberModal(member);
+            } else {
+                const errorText = await response.text();
+                console.error('Failed to load member for editing:', errorText);
+                alert('Failed to load member for editing');
+            }
+        } catch (error) {
+            console.error('Error loading member for editing:', error);
+            alert('Failed to load member for editing');
+        }
+    };
+
+    window.deleteMember = deleteMember;
+
+    // --- Initialization ---
+    const initialize = async () => {
+        // Check if data is already server-rendered
+        const hasServerData = membersTableBody && membersTableBody.children.length > 0;
+
+        if (hasServerData) {
+            console.log('Using server-rendered member data');
+            // Extract member data from server-rendered rows
+            const memberRows = membersTableBody.querySelectorAll('tr[data-member-id]');
+            members = Array.from(memberRows).map(row => {
+                const cells = row.cells;
+                const tierName = cells[3].querySelector('.member-tier-badge')?.textContent || 'Bronze';
+                const statusName = cells[7].querySelector('.status-badge')?.textContent || 'active';
+
+                return {
+                    id: row.getAttribute('data-member-id'),
+                    name: cells[1].querySelector('.member-name')?.textContent || '',
+                    memberCode: cells[1].querySelector('.member-code')?.textContent || '',
+                    phone: cells[2].querySelector('div')?.textContent || '',
+                    email: cells[2].querySelector('div[style*="color: #7f8c8d"]')?.textContent || '',
+                    memberTier: tierName, // Keep as string for filtering
+                    MemberTier: { Name: tierName }, // Also provide object structure
+                    totalPoints: parseInt(cells[4].textContent) || 0,
+                    totalSpent: parseFloat(cells[5].textContent.replace(/[^\d]/g, '')) || 0,
+                    joinedDate: cells[6].textContent || '',
+                    status: statusName.toLowerCase(), // Keep as lowercase for consistency
+                    Status: statusName // Also provide original case
+                };
+            });
+            filteredMembers = [...members];
+            updateStatistics();
+            populateStatusFilter(); // Populate status filter from existing data
+            hideLoading();
+            pagination.style.display = 'flex';
+            updatePagination();
+        } else {
+            console.log('Fetching member data from API');
+            await Promise.all([
+                fetchMembers(),
+                fetchMemberTiers()
+            ]);
+        }
+    };
+
+    // Debounce function to prevent too many API calls
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    initialize();
+});

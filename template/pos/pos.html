@@ -3,6 +3,7 @@
 {{define "content"}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <link rel="stylesheet" href="/static/css/pos.css">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <div class="pos-wrapper" data-toko-id="{{.TokoID}}" data-user-id="{{.UserID}}">
     <!-- Header -->
@@ -41,11 +42,17 @@
                 <div class="customer-select">
                     <i class="bi bi-person"></i>
                     <select id="customer-select">
-                        <option>Walk-in Client</option>
+                        <option value="">Walk-in Client</option>
+                        <option value="">Search Member...</option>
                     </select>
-                    <button class="btn-add-customer"><i class="bi bi-plus"></i></button>
+                    <div class="member-search-container" id="member-search-container" style="display: none;">
+                        <input type="text" id="member-search-input" placeholder="Search by phone or member code..." autocomplete="off">
+                        <div id="member-search-results" class="member-search-results"></div>
+                    </div>
+                    <button class="btn-add-customer" id="add-member-btn" title="Add New Member"><i class="bi bi-person-plus"></i></button>
+                    <button class="btn-member-info" id="member-info-btn" title="View Member Info" style="display: none;"><i class="bi bi-info-circle"></i></button>
                 </div>
-                <input type="text" placeholder="Reference Note" class="reference-note">
+                <input type="text" placeholder="Reference Note" class="reference-note" id="reference-note">
             </div>
 
             <div class="cart-table-container">
@@ -66,6 +73,20 @@
             </div>
 
             <div class="transaction-summary">
+                <div class="member-info-display" id="member-info-display" style="display: none;">
+                    <div class="member-name">
+                        <i class="bi bi-person-badge"></i>
+                        <span id="selected-member-name">Member Name</span>
+                    </div>
+                    <div class="member-points">
+                        <i class="bi bi-star-fill"></i>
+                        <span id="selected-member-points">0 pts</span>
+                    </div>
+                    <div class="member-tier">
+                        <i class="bi bi-award"></i>
+                        <span id="selected-member-tier">Bronze</span>
+                    </div>
+                </div>
                 <div class="summary-item">
                     <span>Total Items</span>
                     <span id="summary-total-items">0 (0)</span>
@@ -75,8 +96,23 @@
                     <span id="summary-total">Rp 0</span>
                 </div>
                 <div class="summary-item">
-                    <span>Discount</span>
+                    <span>Member Discount</span>
+                    <span id="summary-member-discount">Rp 0</span>
+                </div>
+                <div class="summary-item">
+                    <span>Points Earned</span>
+                    <span id="summary-points-earned">0 pts</span>
+                </div>
+                <div class="summary-item">
+                    <span>Additional Discount</span>
                     <input type="text" id="summary-discount" value="0">
+                </div>
+                <div class="summary-item redeem-points-section" id="redeem-points-section" style="display: none;">
+                    <span>Redeem Points</span>
+                    <div class="redeem-points-controls">
+                        <input type="number" id="redeem-points-input" min="0" placeholder="0">
+                        <button class="btn-redeem-points" id="btn-redeem-points">Apply</button>
+                    </div>
                 </div>
                 <div class="summary-item">
                     <span>Order Tax</span>
@@ -90,6 +126,7 @@
 
             <div class="transaction-actions">
                 <button class="btn-action btn-hold"><i class="bi bi-pause-circle"></i> Hold</button>
+                <button class="btn-action btn-view-held" id="view-held-btn"><i class="bi bi-clock-history"></i> Held</button>
                 <button class="btn-action btn-cancel"><i class="bi bi-x-circle"></i> Cancel</button>
                 <button class="btn-action btn-print-order"><i class="bi bi-printer"></i> Print Order</button>
                 <button class="btn-action btn-payment"><i class="bi bi-check-circle"></i> Payment</button>
@@ -100,7 +137,10 @@
         <section class="pos-product-panel">
             <div class="product-search-bar">
                 <i class="bi bi-search"></i>
-                <input type="text" id="product-search" placeholder="Search product by code or name, you can scan barcode too">
+                <input type="text" id="product-search" placeholder="Search product by code or name, you can scan barcode too" autocomplete="off">
+                <button class="btn-barcode-scan" id="barcode-scan-btn" title="Scan Barcode">
+                    <i class="bi bi-upc-scan"></i>
+                </button>
             </div>
             <div id="category-filter-bar" class="category-filter-bar">
                 <!-- Category buttons will be injected here by JS -->
@@ -108,6 +148,320 @@
             <div id="product-grid" class="product-grid"></div>
         </section>
     </main>
+</div>
+
+<!-- Payment Modal -->
+<div id="payment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Payment</h3>
+            <span class="close" id="payment-modal-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="payment-summary">
+                <div class="summary-row">
+                    <span>Total Items:</span>
+                    <span id="payment-total-items">0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span id="payment-subtotal">Rp 0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Discount:</span>
+                    <span id="payment-discount">Rp 0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tax (10%):</span>
+                    <span id="payment-tax">Rp 0</span>
+                </div>
+                <div class="summary-row total-row">
+                    <span>Total Payable:</span>
+                    <span id="payment-total-payable">Rp 0</span>
+                </div>
+            </div>
+
+            <div class="payment-method">
+                <label>Payment Method:</label>
+                <select id="payment-method-select">
+                    <option value="Cash">Cash</option>
+                    <option value="Transfer">Transfer</option>
+                    <option value="QRIS">QRIS</option>
+                </select>
+            </div>
+
+            <div class="cash-payment" id="cash-payment-section">
+                <label>Cash Amount:</label>
+                <input type="number" id="cash-amount" placeholder="Enter cash amount" min="0" step="1000">
+                <div class="change-amount">
+                    <span>Change:</span>
+                    <span id="change-amount">Rp 0</span>
+                </div>
+            </div>
+
+            <div class="customer-info">
+                <label>Customer Name:</label>
+                <input type="text" id="customer-name" placeholder="Walk-in Customer">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel-payment" id="cancel-payment-btn">Cancel</button>
+            <button class="btn-confirm-payment" id="confirm-payment-btn">
+                <i class="bi bi-check-circle"></i> Confirm Payment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Print Modal -->
+<div id="receipt-modal" class="modal">
+    <div class="modal-content receipt-content">
+        <div class="modal-header">
+            <h3>Transaction Receipt</h3>
+            <span class="close" id="receipt-modal-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="receipt-content" class="receipt-print">
+                <!-- Receipt will be generated here -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-print-receipt" id="print-receipt-btn">
+                <i class="bi bi-printer"></i> Print Receipt
+            </button>
+            <button class="btn-close-receipt" id="close-receipt-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Barcode Scanner Modal -->
+<div id="barcode-scanner-modal" class="modal">
+    <div class="modal-content scanner-content">
+        <div class="modal-header">
+            <h3>Scan Barcode</h3>
+            <span class="close" id="scanner-modal-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="qr-reader" class="qr-reader-container"></div>
+            <div class="scanner-controls">
+                <button class="btn-test-scan" id="test-scan-btn">Test Detection</button>
+                <button class="btn-stop-scan" id="stop-scan-btn">Close Scanner</button>
+                <div id="scan-result" class="scan-result"></div>
+                <div class="scan-info">
+                    <small>Scanner stays open for continuous scanning. Close when done.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Member Modal -->
+<div id="add-member-modal" class="modal">
+    <div class="modal-content member-modal-enhanced">
+        <div class="modal-header-enhanced">
+            <div class="header-icon">
+                <i class="bi bi-person-plus-fill"></i>
+            </div>
+            <div class="header-text">
+                <h3>Add New Member</h3>
+                <p>Register a new loyal customer for exclusive benefits</p>
+            </div>
+            <span class="close" id="member-modal-close">&times;</span>
+        </div>
+        <div class="modal-body-enhanced">
+            <div class="quick-add-section">
+                <h4><i class="bi bi-lightning-fill"></i> Quick Add</h4>
+                <div class="form-row-quick">
+                    <div class="form-group-enhanced">
+                        <label>Full Name *</label>
+                        <div class="input-icon">
+                            <i class="bi bi-person"></i>
+                            <input type="text" id="new-member-name" placeholder="Enter member name" class="form-input-enhanced" required>
+                        </div>
+                    </div>
+                    <div class="form-group-enhanced">
+                        <label>Phone Number *</label>
+                        <div class="input-icon">
+                            <i class="bi bi-telephone"></i>
+                            <input type="tel" id="new-member-phone" placeholder="Enter phone number" class="form-input-enhanced" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advanced-section">
+                <h4><i class="bi bi-gear"></i> Additional Information</h4>
+                <div class="form-row-advanced">
+                    <div class="form-group-enhanced">
+                        <label>Email Address</label>
+                        <div class="input-icon">
+                            <i class="bi bi-envelope"></i>
+                            <input type="email" id="new-member-email" placeholder="email@example.com" class="form-input-enhanced">
+                        </div>
+                    </div>
+                    <div class="form-group-enhanced">
+                        <label>Birthday</label>
+                        <div class="input-icon">
+                            <i class="bi bi-calendar-event"></i>
+                            <input type="date" id="new-member-birthday" class="form-input-enhanced">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row-advanced">
+                    <div class="form-group-enhanced">
+                        <label>Member Tier</label>
+                        <div class="input-icon">
+                            <i class="bi bi-award"></i>
+                            <select id="new-member-tier" class="form-input-enhanced">
+                                <option value="">Auto Assign (Bronze)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group-enhanced">
+                        <label>Gender</label>
+                        <div class="input-icon">
+                            <i class="bi bi-gender-ambiguous"></i>
+                            <select id="new-member-gender" class="form-input-enhanced">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group-enhanced full-width">
+                    <label>Address</label>
+                    <div class="input-icon">
+                        <i class="bi bi-geo-alt"></i>
+                        <textarea id="new-member-address" placeholder="Enter complete address" class="form-input-enhanced" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="form-group-enhanced full-width">
+                    <label>Notes</label>
+                    <div class="input-icon">
+                        <i class="bi bi-chat-left-text"></i>
+                        <textarea id="new-member-notes" placeholder="Additional notes about this member" class="form-input-enhanced" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="member-benefits">
+                <h4><i class="bi bi-gift"></i> Member Benefits</h4>
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <span>Earn points on every purchase</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-percent-fill text-success"></i>
+                        <span>Exclusive member discounts</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-cup-hot-fill text-info"></i>
+                        <span>Birthday special offers</span>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="bi bi-bell-fill text-primary"></i>
+                        <span>Priority notifications</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer-enhanced">
+            <div class="footer-left">
+                <button class="btn btn-outline-secondary" id="cancel-member-btn">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+            </div>
+            <div class="footer-right">
+                <button class="btn btn-primary" id="save-member-btn">
+                    <i class="bi bi-person-plus"></i> Add Member
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Member Info Modal -->
+<div id="member-info-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Member Information</h3>
+            <span class="close" id="member-info-modal-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="member-info-grid">
+                <div class="info-group">
+                    <label>Member Code</label>
+                    <span id="info-member-code">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Name</label>
+                    <span id="info-member-name">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Phone</label>
+                    <span id="info-member-phone">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Email</label>
+                    <span id="info-member-email">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Member Tier</label>
+                    <span id="info-member-tier">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Total Points</label>
+                    <span id="info-member-points">0</span>
+                </div>
+                <div class="info-group">
+                    <label>Total Spent</label>
+                    <span id="info-member-spent">Rp 0</span>
+                </div>
+                <div class="info-group">
+                    <label>Joined Date</label>
+                    <span id="info-member-joined">-</span>
+                </div>
+                <div class="info-group">
+                    <label>Last Visit</label>
+                    <span id="info-member-last-visit">-</span>
+                </div>
+            </div>
+            <div class="member-points-breakdown">
+                <h4>Points Transaction History</h4>
+                <div id="member-transactions-list" class="transactions-list">
+                    <!-- Transactions will be loaded here -->
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="close-member-info-btn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Held Transactions Modal -->
+<div id="held-transactions-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Held Transactions</h3>
+            <span class="close" id="held-modal-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="held-transactions-list" class="held-list">
+                <!-- Held transactions will be listed here -->
+            </div>
+            <div id="no-held-transactions" class="no-data" style="display: none;">
+                <i class="bi bi-inbox"></i>
+                <p>No held transactions</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="cancel-held-btn">Close</button>
+        </div>
+    </div>
 </div>
 
 <!-- TEMPLATES -->
