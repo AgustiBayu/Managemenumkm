@@ -9,7 +9,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func NewRouter(userController controller.UserController, tokoController controller.TokoController, categoryController controller.ProductCategoryController, productController controller.ProductController, posController controller.PosController, memberController controller.MemberController) *httprouter.Router {
+func NewRouter(userController controller.UserController, tokoController controller.TokoController, categoryController controller.ProductCategoryController, productController controller.ProductController, posController controller.PosController, memberController controller.MemberController, discountController controller.DiscountController) *httprouter.Router {
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.Dir("static"))
 
@@ -104,6 +104,20 @@ func NewRouter(userController controller.UserController, tokoController controll
 
 	// Member Tier Management
 	// TODO: Add member tier routes if needed for admin management
+
+	// --- Discount Management ---
+	router.GET("/discounts", middleware.Authorize(discountController.ShowDiscountPage, authAll...))
+
+	// Discount API Routes
+	router.GET("/api/discounts", middleware.Authorize(discountController.GetDiscounts, authAll...))
+	router.POST("/api/discounts", middleware.Authorize(discountController.CreateDiscount, authAll...))
+	router.GET("/api/discounts/:id", middleware.Authorize(discountController.GetDiscountByID, authAll...))
+	router.PUT("/api/discounts/:id", middleware.Authorize(discountController.UpdateDiscount, authAll...))
+	router.DELETE("/api/discounts/:id", middleware.Authorize(discountController.DeleteDiscount, authAll...))
+
+	// Special Offers and Flash Sales
+	router.POST("/api/discounts/special-offers", middleware.Authorize(discountController.CreateSpecialOffer, authAll...))
+	router.POST("/api/discounts/flash-sales", middleware.Authorize(discountController.CreateFlashSale, authAll...))
 
 	return router
 }

@@ -17,7 +17,7 @@ func main() {
 
 	helper.InitJWT()
 	db := app.DB()
-	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{}, &domain.ProductBatch{}, &domain.Transaction{}, &domain.TransactionItem{}, &domain.MemberTier{}, &domain.Member{}, &domain.MemberTransaction{}, &domain.PointRedemptionRule{})
+	db.AutoMigrate(&domain.User{}, &domain.Toko{}, &domain.ProductCategory{}, &domain.Product{}, &domain.ProductBatch{}, &domain.Transaction{}, &domain.TransactionItem{}, &domain.MemberTier{}, &domain.Member{}, &domain.MemberTransaction{}, &domain.PointRedemptionRule{}, &domain.Discount{}, &domain.DiscountUsage{}, &domain.SpecialOffer{}, &domain.SpecialOfferProduct{}, &domain.FlashSale{}, &domain.FlashSaleProduct{}, &domain.BonusPointRule{}, &domain.TierPromotion{})
 	helper.DBSeed(db)
 	validate := validator.New()
 
@@ -30,6 +30,7 @@ func main() {
 	transRepo := repository.NewTransactionRepository(db)
 	memberRepo := repository.NewMemberRepository(db)
 	memberTierRepo := repository.NewMemberTierRepository(db)
+	discountRepo := repository.NewDiscountRepository(db)
 
 	// Services
 	userService := service.NewUserService(userRepo, validate)
@@ -39,6 +40,8 @@ func main() {
 	proService := service.NewProductService(proRepo, batchRepo, cateRepo, validate)
 	memberService := service.NewMemberService(memberRepo, memberTierRepo, validate)
 	transService := service.NewTransactionService(db, transRepo, proRepo, memberService)
+	// pointsService := service.NewPointsCalculationService(memberRepo) // TODO: Implement points service
+	discountService := service.NewDiscountService(discountRepo, memberRepo)
 
 	// Controllers
 	userController := controller.NewUserController(userService, tokoService)
@@ -47,8 +50,9 @@ func main() {
 	proController := controller.NewProductController(proService, batchService, cateService)
 	posController := controller.NewPosController(transService, proService)
 	memberController := controller.NewMemberController(memberService)
+	discountController := controller.NewDiscountController(discountService, memberService, proService)
 
-	router := route.NewRouter(userController, tokoController, cateController, proController, posController, memberController)
+	router := route.NewRouter(userController, tokoController, cateController, proController, posController, memberController, discountController)
 	println("Server running at https://localhost:8443")
 
 	// For production with HTTPS, use cert and key files

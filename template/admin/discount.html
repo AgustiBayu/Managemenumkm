@@ -1,0 +1,611 @@
+{{define "title"}}Manajemen Diskon - Manajemen UMKM{{end}}
+
+{{define "css"}}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.1);
+    }
+    .discount-type-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .preview-section {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+</style>
+{{end}}
+
+{{define "content"}}
+<div class="container-fluid py-4">
+    <h2 class="mb-4">
+        <i class="bi bi-percent"></i> Manajemen Diskon
+    </h2>
+
+    <div class="row">
+        <!-- Discount Form -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle"></i> Tambah Diskon Baru
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="discountForm">
+                        <input type="hidden" id="discountId" name="id">
+
+                        <!-- Basic Information -->
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Nama Diskon *</label>
+                            <input type="text" class="form-control" id="name" name="name" required
+                                   placeholder="Contoh: Diskon Akhir Pekan">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Deskripsi</label>
+                            <textarea class="form-control" id="description" name="description" rows="2"
+                                      placeholder="Deskripsi detail tentang diskon"></textarea>
+                        </div>
+
+                        <!-- Discount Type -->
+                        <div class="mb-3">
+                            <label for="type" class="form-label">Tipe Diskon *</label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="">Pilih Tipe Diskon</option>
+                                <option value="PERCENTAGE">Persentase (%)</option>
+                                <option value="FIXED_AMOUNT">Nominal Tetap (Rp)</option>
+                                <option value="BUY_X_GET_Y">Beli X Gratis Y</option>
+                                <option value="BULK">Beli Grosir</option>
+                            </select>
+                        </div>
+
+                        <!-- Discount Value -->
+                        <div class="mb-3">
+                            <label for="discountValue" class="form-label">Nilai Diskon *</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="discountValue" name="discountValue"
+                                       required min="0" step="0.01" placeholder="0">
+                                <span class="input-group-text" id="discountUnit">%</span>
+                            </div>
+                        </div>
+
+                        <!-- Minimum Purchase -->
+                        <div class="mb-3">
+                            <label for="minPurchase" class="form-label">Minimum Pembelian (Rp)</label>
+                            <input type="number" class="form-control" id="minPurchase" name="minPurchase"
+                                   min="0" step="0.01" placeholder="50000">
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="mb-3">
+                                    <label for="startDate" class="form-label">Tanggal Mulai *</label>
+                                    <input type="text" class="form-control" id="startDate" name="startDate"
+                                           required placeholder="Pilih tanggal">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="mb-3">
+                                    <label for="endDate" class="form-label">Tanggal Selesai *</label>
+                                    <input type="text" class="form-control" id="endDate" name="endDate"
+                                           required placeholder="Pilih tanggal">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Applicable To -->
+                        <div class="mb-3">
+                            <label for="applicableTo" class="form-label">Berlaku Untuk *</label>
+                            <select class="form-select" id="applicableTo" name="applicableTo" required>
+                                <option value="ALL">Semua Pelanggan</option>
+                                <option value="MEMBER_TIER">Tier Member Tertentu</option>
+                                <option value="CATEGORY">Kategori Tertentu</option>
+                                <option value="PRODUCT">Produk Tertentu</option>
+                            </select>
+                        </div>
+
+                        <!-- Member Tier Selection (Hidden by default) -->
+                        <div id="memberTierFields" class="mb-3" style="display: none;">
+                            <label for="memberTierId" class="form-label">Pilih Tier Member</label>
+                            <select class="form-select" id="memberTierId" name="memberTierId">
+                                <option value="">-- Pilih Tier Member --</option>
+                                {{range .MemberTiers}}
+                                <option value="{{.ID}}">{{.Name}} (Min. {{.MinPoints}} poin, diskon {{.DiscountRate}}%)</option>
+                                {{end}}
+                            </select>
+                            <div class="form-text">
+                                <small class="text-muted">Diskon khusus akan berlaku hanya untuk member pada tier yang dipilih</small>
+                            </div>
+                        </div>
+
+                        <!-- Usage Limits -->
+                        <div class="mb-3">
+                            <label for="usageLimit" class="form-label">Batas Penggunaan (0 = Unlimited)</label>
+                            <input type="number" class="form-control" id="usageLimit" name="usageLimit"
+                                   min="0" placeholder="100">
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Simpan Diskon
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                <i class="bi bi-arrow-clockwise"></i> Reset Form
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Preview Section -->
+                    <div class="preview-section">
+                        <h6><i class="bi bi-eye"></i> Preview Diskon</h6>
+                        <div id="previewContent">
+                            <p class="text-muted mb-0">Isi form untuk melihat preview</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discount List -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">
+                                <i class="bi bi-list-ul"></i> Daftar Diskon
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Search Bar -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchDiscount" placeholder="Cari diskon...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="searchDiscounts()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" onclick="loadDiscounts()">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Discount Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>Tipe</th>
+                                    <th>Nilai</th>
+                                    <th>Periode</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="discountTableBody">
+                                <!-- Discount rows will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Memuat data diskon...</p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="text-center py-4">
+                        <i class="bi bi-percent display-1 text-muted"></i>
+                        <h5 class="text-muted mt-3">Belum ada diskon</h5>
+                        <p class="text-muted">Buat diskon pertama Anda menggunakan form di samping</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Konfirmasi Hapus</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus diskon "<span id="deleteDiscountName"></span>"?</p>
+                <p class="text-danger">Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Hapus</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+
+<script>
+    // Initialize date pickers
+    flatpickr("#startDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        minDate: "today",
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                endDatePicker.set('minDate', selectedDates[0]);
+            }
+        }
+    });
+
+    const endDatePicker = flatpickr("#endDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        minDate: "today"
+    });
+
+    // Handle discount type change
+    document.getElementById('type').addEventListener('change', function() {
+        const type = this.value;
+        const valueInput = document.getElementById('discountValue');
+        const valueUnit = document.getElementById('discountUnit');
+
+        // Update unit
+        switch(type) {
+            case 'PERCENTAGE':
+                valueUnit.textContent = '%';
+                valueInput.placeholder = '10';
+                valueInput.max = '100';
+                break;
+            case 'FIXED_AMOUNT':
+                valueUnit.textContent = 'Rp';
+                valueInput.placeholder = '10000';
+                valueInput.removeAttribute('max');
+                break;
+            default:
+                valueUnit.textContent = '%';
+                valueInput.placeholder = '0';
+                break;
+        }
+
+        updatePreview();
+    });
+
+    // Handle applicable to change
+    document.getElementById('applicableTo').addEventListener('change', function() {
+        const applicableTo = this.value;
+        const memberTierFields = document.getElementById('memberTierFields');
+
+        // Hide all conditional fields first
+        memberTierFields.style.display = 'none';
+
+        // Show relevant field
+        if (applicableTo === 'MEMBER_TIER') {
+            memberTierFields.style.display = 'block';
+        }
+
+        updatePreview();
+    });
+
+    // Update preview function
+    function updatePreview() {
+        const name = document.getElementById('name').value || 'Nama Diskon';
+        const type = document.getElementById('type').value;
+        const value = document.getElementById('discountValue').value;
+        const minPurchase = document.getElementById('minPurchase').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        const applicableTo = document.getElementById('applicableTo').value;
+        const memberTierId = document.getElementById('memberTierId').value;
+
+        let preview = `<strong>${name}</strong><br>`;
+
+        // Show applicable to
+        switch(applicableTo) {
+            case 'ALL':
+                preview += `Berlaku untuk: Semua Pelanggan<br>`;
+                break;
+            case 'MEMBER_TIER':
+                const memberTierSelect = document.getElementById('memberTierId');
+                const selectedTierText = memberTierSelect.options[memberTierSelect.selectedIndex]?.text || '-- Tier --';
+                preview += `Berlaku untuk: ${selectedTierText}<br>`;
+                break;
+            case 'CATEGORY':
+                preview += `Berlaku untuk: Kategori Tertentu<br>`;
+                break;
+            case 'PRODUCT':
+                preview += `Berlaku untuk: Produk Tertentu<br>`;
+                break;
+        }
+
+        if (type && value) {
+            switch(type) {
+                case 'PERCENTAGE':
+                    preview += `Diskon ${value}%`;
+                    break;
+                case 'FIXED_AMOUNT':
+                    preview += `Diskon Rp ${parseInt(value).toLocaleString('id-ID')}`;
+                    break;
+                default:
+                    preview += `Diskon Khusus`;
+                    break;
+            }
+            preview += '<br>';
+        }
+
+        if (minPurchase) {
+            preview += `Min. pembelian Rp ${parseInt(minPurchase).toLocaleString('id-ID')}<br>`;
+        }
+
+        if (startDate && endDate) {
+            preview += `Berlaku: ${startDate} - ${endDate}`;
+        }
+
+        document.getElementById('previewContent').innerHTML = preview;
+    }
+
+    // Add event listeners for preview
+    document.querySelectorAll('#discountForm input, #discountForm select, #discountForm textarea').forEach(element => {
+        element.addEventListener('input', updatePreview);
+        element.addEventListener('change', updatePreview);
+    });
+
+    // Form submission
+    document.getElementById('discountForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Get form data manually to ensure proper formatting
+        const applicableTo = document.getElementById('applicableTo').value;
+        const data = {
+            id: document.getElementById('discountId').value,
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            type: document.getElementById('type').value,
+            discount_value: parseFloat(document.getElementById('discountValue').value),
+            min_purchase: parseFloat(document.getElementById('minPurchase').value) || 0,
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            usage_limit: parseInt(document.getElementById('usageLimit').value) || 0,
+            is_stackable: document.getElementById('isStackable')?.checked || false,
+            applicable_to: applicableTo,
+            member_tier_id: applicableTo === 'MEMBER_TIER' ? parseInt(document.getElementById('memberTierId').value) || null : null,
+            product_id: applicableTo === 'PRODUCT' ? null : null, // TODO: Implement product selection
+            category_id: applicableTo === 'CATEGORY' ? null : null // TODO: Implement category selection
+        };
+
+        const discountId = document.getElementById('discountId').value;
+        const isEdit = discountId !== '';
+
+        const url = isEdit ? `/api/discounts/${discountId}` : '/api/discounts';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Diskon berhasil disimpan!');
+                resetForm();
+                loadDiscounts();
+            } else {
+                alert('Error: ' + (data.error || 'Terjadi kesalahan'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat menyimpan diskon');
+        });
+    });
+
+    // Reset form function
+    function resetForm() {
+        document.getElementById('discountForm').reset();
+        document.getElementById('discountId').value = '';
+        updatePreview();
+    }
+
+    // Load discounts function
+    function loadDiscounts(filter = 'all') {
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const tableBody = document.getElementById('discountTableBody');
+
+        loadingState.style.display = 'block';
+        emptyState.style.display = 'none';
+        tableBody.innerHTML = '';
+
+        fetch(`/api/discounts`)
+            .then(response => response.json())
+            .then(data => {
+                loadingState.style.display = 'none';
+
+                if (data.data && data.data.discounts && data.data.discounts.length > 0) {
+                    const discounts = data.data.discounts;
+
+                    discounts.forEach(discount => {
+                        const row = createDiscountRow(discount);
+                        tableBody.innerHTML += row;
+                    });
+                } else {
+                    emptyState.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'block';
+                console.error('Error loading discounts:', error);
+            });
+    }
+
+    // Create discount row
+    function createDiscountRow(discount) {
+        const typeBadge = getTypeBadge(discount.type);
+        const statusBadge = getStatusBadge(discount.is_active);
+
+        return `
+            <tr>
+                <td>
+                    <div>
+                        <strong>${discount.name}</strong>
+                        ${discount.description ? `<br><small class="text-muted">${discount.description}</small>` : ''}
+                    </div>
+                </td>
+                <td>${typeBadge}</td>
+                <td>
+                    ${discount.type === 'PERCENTAGE' ? discount.discount_value + '%' : 'Rp ' + parseInt(discount.discount_value).toLocaleString('id-ID')}
+                </td>
+                <td>
+                    <small>${discount.start_date}</small><br>
+                    <small class="text-muted">${discount.end_date}</small>
+                </td>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="editDiscount(${discount.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteDiscount(${discount.id}, '${discount.name}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Helper functions
+    function getTypeBadge(type) {
+        const badges = {
+            'PERCENTAGE': '<span class="badge bg-primary discount-type-badge">Persentase</span>',
+            'FIXED_AMOUNT': '<span class="badge bg-success discount-type-badge">Nominal</span>',
+            'BUY_X_GET_Y': '<span class="badge bg-info discount-type-badge">Beli X Gratis Y</span>',
+            'BULK': '<span class="badge bg-warning discount-type-badge">Grosir</span>'
+        };
+        return badges[type] || '<span class="badge bg-secondary discount-type-badge">Unknown</span>';
+    }
+
+    function getStatusBadge(isActive) {
+        return isActive
+            ? '<span class="badge bg-success">Aktif</span>'
+            : '<span class="badge bg-danger">Non-aktif</span>';
+    }
+
+    // Delete discount
+    function deleteDiscount(id, name) {
+        document.getElementById('deleteDiscountName').textContent = name;
+
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+
+        document.getElementById('confirmDeleteBtn').onclick = function() {
+            fetch(`/api/discounts/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    deleteModal.hide();
+                    alert('Diskon berhasil dihapus!');
+                    loadDiscounts();
+                } else {
+                    alert('Error: ' + (data.error || 'Terjadi kesalahan'));
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting discount:', error);
+                alert('Gagal menghapus diskon');
+            });
+        };
+    }
+
+    // Edit discount
+    function editDiscount(id) {
+        fetch(`/api/discounts/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const discount = data.data;
+
+                    // Populate form
+                    document.getElementById('discountId').value = discount.id;
+                    document.getElementById('name').value = discount.name;
+                    document.getElementById('description').value = discount.description || '';
+                    document.getElementById('type').value = discount.type;
+                    document.getElementById('discountValue').value = discount.discount_value;
+                    document.getElementById('minPurchase').value = discount.min_purchase || '';
+                    document.getElementById('startDate').value = discount.start_date;
+                    document.getElementById('endDate').value = discount.end_date;
+                    document.getElementById('usageLimit').value = discount.usage_limit || '';
+
+                    // Trigger change events
+                    document.getElementById('type').dispatchEvent(new Event('change'));
+
+                    updatePreview();
+
+                    // Scroll to form
+                    document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading discount:', error);
+                alert('Gagal memuat data diskon');
+            });
+    }
+
+    // Search discounts
+    function searchDiscounts() {
+        const searchTerm = document.getElementById('searchDiscount').value;
+        console.log('Searching for:', searchTerm);
+        // Implement search functionality
+        loadDiscounts();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadDiscounts();
+        updatePreview();
+    });
+</script>
+{{end}}

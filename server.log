@@ -1,0 +1,4 @@
+Server running at https://localhost:8443
+HTTPS server failed to start, falling back to HTTP on :8080
+Error: listen tcp :8443: bind: address already in use
+Server running at http://localhost:8080
