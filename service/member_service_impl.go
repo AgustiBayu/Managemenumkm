@@ -36,24 +36,17 @@ func (s *MemberServiceImpl) CreateMember(request domain.Member) (domain.Member, 
 	// Generate unique member code
 	memberCode := s.generateMemberCode()
 
-	// Get default tier for new members
-	defaultTier, err := s.MemberTierRepository.GetDefaultTier(request.TokoID)
-	if err != nil {
-		return domain.Member{}, err
-	}
-
 	member := domain.Member{
-		TokoID:       request.TokoID,
-		MemberCode:   memberCode,
-		Name:         request.Name,
-		Email:        request.Email,
-		Phone:        request.Phone,
-		Address:      request.Address,
-		MemberTierID: defaultTier.ID,
-		TotalPoints:  0,
-		TotalSpent:   0,
-		IsActive:     true,
-		JoinedDate:   time.Now(),
+		TokoID:      request.TokoID,
+		MemberCode:  memberCode,
+		Name:        request.Name,
+		Email:       request.Email,
+		Phone:       request.Phone,
+		Address:     request.Address,
+		TotalPoints: 0,
+		TotalSpent:  0,
+		IsActive:    true,
+		JoinedDate:  time.Now(),
 	}
 
 	newMember, err := s.MemberRepository.Create(member)
@@ -76,8 +69,7 @@ func (s *MemberServiceImpl) UpdateMember(memberID uint, request domain.Member) (
 	}
 
 	// Debug logging
-	log.Printf("Updating member %d. Current tier ID: %d, Request tier ID: %d",
-		memberID, existingMember.MemberTierID, request.MemberTierID)
+	log.Printf("Updating member %d", memberID)
 
 	existingMember.Name = request.Name
 	existingMember.Email = request.Email
@@ -88,20 +80,12 @@ func (s *MemberServiceImpl) UpdateMember(memberID uint, request domain.Member) (
 	existingMember.Notes = request.Notes
 	existingMember.Status = request.Status
 
-	// Only update MemberTierID if it's provided (not 0)
-	if request.MemberTierID != 0 {
-		log.Printf("Updating MemberTierID from %d to %d", existingMember.MemberTierID, request.MemberTierID)
-		existingMember.MemberTierID = request.MemberTierID
-	} else {
-		log.Printf("MemberTierID is 0 in request, keeping existing value: %d", existingMember.MemberTierID)
-	}
-
 	updatedMember, err := s.MemberRepository.Update(existingMember)
 	if err != nil {
 		return domain.Member{}, err
 	}
 
-	log.Printf("Successfully updated member. Final tier ID: %d", updatedMember.MemberTierID)
+	log.Printf("Successfully updated member")
 	return updatedMember, nil
 }
 
@@ -200,12 +184,7 @@ func (s *MemberServiceImpl) EarnPoints(memberID uint, transactionID uint, amount
 		return domain.MemberTransaction{}, err
 	}
 
-	// Update member tier if needed
-	_, err = s.UpdateMemberTier(memberID)
-	if err != nil {
-		log.Printf("Error updating member tier: %v", err)
-		// Continue even if tier update fails
-	}
+	// No tier updates needed - tierless membership system
 
 	return memberTransaction, nil
 }
@@ -264,46 +243,7 @@ func (s *MemberServiceImpl) GetPointsBalance(memberID uint) (int, error) {
 	return balance, nil
 }
 
-func (s *MemberServiceImpl) UpdateMemberTier(memberID uint) (domain.Member, error) {
-	member, err := s.MemberRepository.FindByID(memberID)
-	if err != nil {
-		return domain.Member{}, err
-	}
-
-	// Find appropriate tier based on points and spent amount
-	// First check by points
-	tierByPoints, err := s.MemberTierRepository.FindByPoints(member.TotalPoints, member.TokoID)
-	if err != nil {
-		tierByPoints, err = s.MemberTierRepository.GetDefaultTier(member.TokoID)
-		if err != nil {
-			return domain.Member{}, err
-		}
-	}
-
-	// Also check by spent amount and pick the better tier
-	tierBySpent, err := s.MemberTierRepository.FindBySpentAmount(member.TotalSpent, member.TokoID)
-	if err != nil {
-		tierBySpent = tierByPoints
-	}
-
-	// Choose the tier with better benefits (higher discount rate or point rate)
-	selectedTier := tierByPoints
-	if tierBySpent.DiscountRate > tierByPoints.DiscountRate || tierBySpent.PointRate > tierByPoints.PointRate {
-		selectedTier = tierBySpent
-	}
-
-	// Update member tier if it's different
-	if member.MemberTierID != selectedTier.ID {
-		member.MemberTierID = selectedTier.ID
-		updatedMember, err := s.MemberRepository.Update(member)
-		if err != nil {
-			return domain.Member{}, err
-		}
-		return updatedMember, nil
-	}
-
-	return member, nil
-}
+// UpdateMemberTier removed - no longer needed with tierless membership system
 
 func (s *MemberServiceImpl) generateMemberCode() string {
 	// Generate a unique member code in format: MBR + 8 digit random number
@@ -313,9 +253,7 @@ func (s *MemberServiceImpl) generateMemberCode() string {
 	return fmt.Sprintf("MBR%08d", randomNum)
 }
 
-func (s *MemberServiceImpl) GetMemberTiers(tokoID uint) ([]domain.MemberTier, error) {
-	return s.MemberTierRepository.FindByTokoID(tokoID)
-}
+// GetMemberTiers removed - no longer needed with tierless membership system
 
 // AutoInactiveMembers marks members as inactive if they haven't made purchases in 6 months
 func (s *MemberServiceImpl) AutoInactiveMembers(tokoID uint) error {
@@ -383,24 +321,6 @@ func cleanPhoneNumber(phone string) string {
 func (s *MemberServiceImpl) ImportMembers(members []ImportMember, tokoID uint, skipDuplicates, updateExisting bool) (ImportMembersResponse, error) {
 	response := ImportMembersResponse{}
 
-	// Get member tiers for tier mapping
-	memberTiers, err := s.MemberTierRepository.FindByTokoID(tokoID)
-	if err != nil {
-		return response, fmt.Errorf("failed to get member tiers: %w", err)
-	}
-
-	// Create a map for tier name to ID
-	tierMap := make(map[string]uint)
-	for _, tier := range memberTiers {
-		tierMap[strings.ToLower(tier.Name)] = tier.ID
-	}
-
-	// Get default tier
-	defaultTier, err := s.MemberTierRepository.GetDefaultTier(tokoID)
-	if err != nil {
-		return response, fmt.Errorf("failed to get default member tier: %w", err)
-	}
-
 	for _, importMember := range members {
 		// Check if member already exists by phone
 		existingMember, err := s.MemberRepository.FindByPhone(importMember.Phone, tokoID)
@@ -425,13 +345,6 @@ func (s *MemberServiceImpl) ImportMembers(members []ImportMember, tokoID uint, s
 					existingMember.Status = importMember.Status
 				}
 
-				// Update tier if provided and valid
-				if importMember.Tier != "" {
-					if tierID, exists := tierMap[strings.ToLower(importMember.Tier)]; exists {
-						existingMember.MemberTierID = tierID
-					}
-				}
-
 				_, err = s.MemberRepository.Update(existingMember)
 				if err != nil {
 					response.Errors++
@@ -446,14 +359,6 @@ func (s *MemberServiceImpl) ImportMembers(members []ImportMember, tokoID uint, s
 			// Member doesn't exist, create new one
 			memberCode := s.generateMemberCode()
 
-			// Determine tier ID
-			var memberTierID uint = defaultTier.ID
-			if importMember.Tier != "" {
-				if tierID, exists := tierMap[strings.ToLower(importMember.Tier)]; exists {
-					memberTierID = tierID
-				}
-			}
-
 			// Determine status
 			status := "active"
 			if importMember.Status != "" {
@@ -461,18 +366,17 @@ func (s *MemberServiceImpl) ImportMembers(members []ImportMember, tokoID uint, s
 			}
 
 			member := domain.Member{
-				TokoID:       tokoID,
-				MemberCode:   memberCode,
-				Name:         importMember.Name,
-				Email:        importMember.Email,
-				Phone:        importMember.Phone,
-				Address:      importMember.Address,
-				Birthday:     importMember.Birthday,
-				Gender:       importMember.Gender,
-				MemberTierID: memberTierID,
-				TotalPoints:  0,
-				TotalSpent:   0,
-				IsActive:     true,
+				TokoID:      tokoID,
+				MemberCode:  memberCode,
+				Name:        importMember.Name,
+				Email:       importMember.Email,
+				Phone:       importMember.Phone,
+				Address:     importMember.Address,
+				Birthday:    importMember.Birthday,
+				Gender:      importMember.Gender,
+				TotalPoints: 0,
+				TotalSpent:  0,
+				IsActive:    true,
 				Status:       status,
 				Notes:        importMember.Notes,
 				JoinedDate:   time.Now(),

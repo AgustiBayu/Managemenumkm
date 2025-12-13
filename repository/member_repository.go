@@ -37,21 +37,17 @@ func (r *MemberRepositoryImpl) Create(member domain.Member) (domain.Member, erro
 }
 
 func (r *MemberRepositoryImpl) Update(member domain.Member) (domain.Member, error) {
-	// Debug logging to help troubleshoot update issues
-	fmt.Printf("Repository: Updating member %d with MemberTierID: %d\n", member.ID, member.MemberTierID)
-
 	// Try using a more explicit update approach
 	result := r.DB.Model(&domain.Member{}).Where("id = ?", member.ID).Updates(map[string]interface{}{
-		"name":           member.Name,
-		"email":          member.Email,
-		"phone":          member.Phone,
-		"address":        member.Address,
-		"birthday":       member.Birthday,
-		"gender":         member.Gender,
-		"notes":          member.Notes,
-		"status":         member.Status,
-		"member_tier_id": member.MemberTierID,
-		"updated_at":     time.Now(),
+		"name":       member.Name,
+		"email":      member.Email,
+		"phone":      member.Phone,
+		"address":    member.Address,
+		"birthday":   member.Birthday,
+		"gender":     member.Gender,
+		"notes":      member.Notes,
+		"status":     member.Status,
+		"updated_at": time.Now(),
 	})
 
 	if result.Error != nil {
@@ -72,7 +68,7 @@ func (r *MemberRepositoryImpl) Update(member domain.Member) (domain.Member, erro
 		return member, err
 	}
 
-	fmt.Printf("Repository: Verified updated member %d has MemberTierID: %d\n", updatedMember.ID, updatedMember.MemberTierID)
+	fmt.Printf("Repository: Successfully updated member %d\n", updatedMember.ID)
 	return updatedMember, nil
 }
 
@@ -83,25 +79,25 @@ func (r *MemberRepositoryImpl) Delete(memberID uint) error {
 
 func (r *MemberRepositoryImpl) FindByID(memberID uint) (domain.Member, error) {
 	var member domain.Member
-	err := r.DB.Preload("MemberTier").First(&member, memberID).Error
+	err := r.DB.First(&member, memberID).Error
 	return member, err
 }
 
 func (r *MemberRepositoryImpl) FindByTokoID(tokoID uint) ([]domain.Member, error) {
 	var members []domain.Member
-	err := r.DB.Preload("MemberTier").Where("toko_id = ?", tokoID).Find(&members).Error
+	err := r.DB.Where("toko_id = ?", tokoID).Find(&members).Error
 	return members, err
 }
 
 func (r *MemberRepositoryImpl) FindByMemberCode(memberCode string, tokoID uint) (domain.Member, error) {
 	var member domain.Member
-	err := r.DB.Preload("MemberTier").Where("member_code = ? AND toko_id = ?", memberCode, tokoID).First(&member).Error
+	err := r.DB.Where("member_code = ? AND toko_id = ?", memberCode, tokoID).First(&member).Error
 	return member, err
 }
 
 func (r *MemberRepositoryImpl) FindByPhone(phone string, tokoID uint) (domain.Member, error) {
 	var member domain.Member
-	err := r.DB.Preload("MemberTier").Where("phone = ? AND toko_id = ?", phone, tokoID).First(&member).Error
+	err := r.DB.Where("phone = ? AND toko_id = ?", phone, tokoID).First(&member).Error
 	return member, err
 }
 
@@ -128,13 +124,13 @@ func (r *MemberRepositoryImpl) GetPointsBalance(memberID uint) (int, error) {
 
 func (r *MemberRepositoryImpl) FindActiveMembers(tokoID uint) ([]domain.Member, error) {
 	var members []domain.Member
-	err := r.DB.Preload("MemberTier").Where("toko_id = ? AND status = ?", tokoID, "active").Find(&members).Error
+	err := r.DB.Where("toko_id = ? AND status = ?", tokoID, "active").Find(&members).Error
 	return members, err
 }
 
 func (r *MemberRepositoryImpl) FindWithFilter(filter domain.MemberFilter) ([]domain.Member, error) {
 	var members []domain.Member
-	query := r.DB.Preload("MemberTier").Table("members").Where("members.toko_id = ?", filter.TokoID)
+	query := r.DB.Table("members").Where("members.toko_id = ?", filter.TokoID)
 
 	// Add search filter if provided
 	if filter.Search != "" {

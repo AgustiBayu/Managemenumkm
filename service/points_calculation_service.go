@@ -65,9 +65,9 @@ func (s *pointsCalculationServiceImpl) CalculatePoints(ctx context.Context, tran
 		itemSubtotal := float64(item.Quantity) * item.Price
 		itemPoints := int(itemSubtotal * s.pointRules.BaseRate)
 
-		// Apply tier multiplier
-		tierMultiplier := s.pointRules.TierMultipliers[member.MemberTier.Name]
-		itemPoints = int(float64(itemPoints) * tierMultiplier)
+		// No tier multiplier - all members earn points at the same rate
+		// tierMultiplier := s.pointRules.TierMultipliers["Standard"]
+		// itemPoints = int(float64(itemPoints) * tierMultiplier)
 
 		// Apply category bonus if applicable (placeholder logic)
 		// You would need to load product with category to implement this

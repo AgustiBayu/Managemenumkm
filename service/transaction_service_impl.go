@@ -120,8 +120,8 @@ func (s *TransactionServiceImpl) CheckoutWithMember(request helper.CheckoutReque
 		return nil, err
 	}
 
-	// Get member information for discount calculation
-	member, err := s.memberService.GetMemberByID(memberID)
+	// Validate member exists
+	_, err := s.memberService.GetMemberByID(memberID)
 	if err != nil {
 		tx.Rollback()
 		return nil, errors.New("member not found")
@@ -178,11 +178,9 @@ func (s *TransactionServiceImpl) CheckoutWithMember(request helper.CheckoutReque
 		}
 	}
 
-	// Apply member discount if applicable
+	// No member tier discount - all members get the same base rate
 	var finalAmount = float64(totalAmount)
-	if member.MemberTier.DiscountRate > 0 {
-		finalAmount = finalAmount * (1 - member.MemberTier.DiscountRate)
-	}
+	// Discount logic moved to separate discount system
 
 	transaction := &domain.Transaction{
 		TokoID:          request.TokoID,

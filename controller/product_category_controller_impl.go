@@ -34,7 +34,25 @@ func (c *ProductCategoryControllerImpl) Create(w http.ResponseWriter, r *http.Re
 }
 
 func (c *ProductCategoryControllerImpl) FindAll(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	categories, _ := c.ProductCategoryService.FindAll(context.Background())
+	// Check if API request
+	if r.Header.Get("Accept") == "application/json" || r.URL.Query().Get("api") == "true" {
+		categories, err := c.ProductCategoryService.FindAll(context.Background())
+		if err != nil {
+			helper.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to fetch categories: "+err.Error())
+			return
+		}
+		helper.WriteSuccessResponse(w, map[string]interface{}{
+			"data": categories,
+		})
+		return
+	}
+
+	// Normal HTML response
+	categories, err := c.ProductCategoryService.FindAll(context.Background())
+	if err != nil {
+		helper.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to fetch categories: "+err.Error())
+		return
+	}
 	data := map[string]interface{}{
 		"Categories": categories,
 	}

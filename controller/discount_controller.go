@@ -44,21 +44,6 @@ func (controller *DiscountControllerImpl) ShowDiscountPage(w http.ResponseWriter
 		return
 	}
 
-	// Get member tiers for dropdown (only active tiers)
-	memberTiers, err := controller.MemberService.GetMemberTiers(claims.TokoID)
-	if err != nil {
-		memberTiers = []domain.MemberTier{}
-	}
-
-	// Filter only active tiers
-	var activeMemberTiers []domain.MemberTier
-	for _, tier := range memberTiers {
-		if tier.IsActive {
-			activeMemberTiers = append(activeMemberTiers, tier)
-		}
-	}
-	memberTiers = activeMemberTiers
-
 	// Get products for dropdown
 	products, err := controller.ProductService.FindAll()
 	if err != nil {
@@ -66,11 +51,10 @@ func (controller *DiscountControllerImpl) ShowDiscountPage(w http.ResponseWriter
 	}
 
 	helper.RenderTemplate(w, "template/admin/discount.html", map[string]interface{}{
-		"title":       "Discount Management",
-		"UserID":      claims.UserID,
-		"TokoID":      claims.TokoID,
-		"MemberTiers": memberTiers,
-		"Products":    products,
+		"title":    "Discount Management",
+		"UserID":   claims.UserID,
+		"TokoID":   claims.TokoID,
+		"Products": products,
 	})
 }
 
@@ -123,6 +107,8 @@ func (controller *DiscountControllerImpl) CreateDiscount(w http.ResponseWriter, 
 }
 
 func (controller *DiscountControllerImpl) UpdateDiscount(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	claims := r.Context().Value(middleware.ClaimsKey).(*helper.Claims)
+
 	var request domain.DiscountUpdateRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
@@ -130,10 +116,22 @@ func (controller *DiscountControllerImpl) UpdateDiscount(w http.ResponseWriter, 
 		return
 	}
 
+	// Validate discount ID
+	if request.ID == 0 {
+		helper.WriteErrorResponse(w, http.StatusBadRequest, "Invalid discount ID")
+		return
+	}
+
 	// Use service to update discount
 	discount, err := controller.DiscountService.Update(request)
 	if err != nil {
 		helper.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to update discount: "+err.Error())
+		return
+	}
+
+	// Additional security check: ensure the discount belongs to the user's store
+	if discount.TokoID != claims.TokoID {
+		helper.WriteErrorResponse(w, http.StatusForbidden, "You can only update discounts from your own store")
 		return
 	}
 

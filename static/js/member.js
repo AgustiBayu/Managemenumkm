@@ -168,15 +168,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // If using filters, add query parameters
             if (useFilters) {
                 const params = new URLSearchParams();
-                
+
                 const searchTerm = memberSearchInput.value.trim();
-                const selectedTier = tierFilter.value.trim();
                 const selectedStatus = statusFilter.value.trim();
-                
+
                 if (searchTerm) params.append('search', searchTerm);
-                if (selectedTier) params.append('tier', selectedTier);
                 if (selectedStatus) params.append('status', selectedStatus);
-                
+
                 if (params.toString()) {
                     url += '?' + params.toString();
                 }
@@ -223,13 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fetchMemberTiers = async () => {
         try {
-            const response = await fetch('/api/member-tiers');
-            if (response.ok) {
-                memberTiers = await response.json();
-                populateTierSelect();
-            }
+            // No longer needed for tierless membership system
+            // Keeping function for compatibility but it does nothing
+            console.log('Member tiers system disabled');
         } catch (error) {
-            console.error('Error fetching member tiers:', error);
+            console.error('Error in fetchMemberTiers:', error);
         }
     };
 
@@ -378,27 +374,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateStatistics = () => {
         const stats = {
-            bronze: 0,
-            silver: 0,
-            gold: 0,
-            platinum: 0,
-            total: members.length
+            total: members.length,
+            active: 0,
+            newThisMonth: 0,
+            totalPoints: 0
         };
 
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+
         members.forEach(member => {
-            const tier = (member.MemberTier?.Name || member.memberTier?.name)?.toLowerCase() || 'bronze';
-            if (stats.hasOwnProperty(tier)) {
-                stats[tier]++;
-            } else {
-                stats.bronze++; // Default to bronze if no tier
+            // Count active members
+            if ((member.Status || member.status || 'active').toLowerCase() === 'active') {
+                stats.active++;
             }
+
+            // Count new members this month
+            const joinDate = member.JoinedDate || member.joinedDate;
+            if (joinDate) {
+                const date = new Date(joinDate);
+                if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+                    stats.newThisMonth++;
+                }
+            }
+
+            // Sum total points
+            stats.totalPoints += member.TotalPoints || member.totalPoints || 0;
         });
 
-        document.getElementById('bronze-count').textContent = stats.bronze;
-        document.getElementById('silver-count').textContent = stats.silver;
-        document.getElementById('gold-count').textContent = stats.gold;
-        document.getElementById('platinum-count').textContent = stats.platinum;
-        document.getElementById('total-members').textContent = stats.total;
+        // Update statistics cards
+        const totalMembersEl = document.getElementById('total-members');
+        const activeMembersEl = document.getElementById('active-members');
+        const newMembersEl = document.getElementById('new-members');
+        const totalPointsEl = document.getElementById('total-points');
+
+        if (totalMembersEl) totalMembersEl.textContent = stats.total;
+        if (activeMembersEl) activeMembersEl.textContent = stats.active;
+        if (newMembersEl) newMembersEl.textContent = stats.newThisMonth;
+        if (totalPointsEl) totalPointsEl.textContent = stats.totalPoints.toLocaleString();
     };
 
     const applyFilters = () => {
@@ -409,12 +422,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Get filter values
         const searchTerm = memberSearchInput.value.toLowerCase().trim();
-        const selectedTier = tierFilter.value.trim();
         const selectedStatus = statusFilter.value.trim();
 
         console.log('Applying filters:', {
             search: searchTerm,
-            tier: selectedTier,
             status: selectedStatus,
             totalMembers: members.length
         });
@@ -428,35 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 (member.Email || member.email)?.toLowerCase().includes(searchTerm)
             );
             console.log('After search filter:', filtered.length);
-        }
-
-        // Tier filter - only apply if value is not empty
-        if (selectedTier !== '') {
-            console.log('Filtering by tier:', selectedTier);
-            console.log('Member data sample:', members.slice(0, 2).map(m => ({
-                name: m.name || m.Name,
-                tier: m.MemberTier?.Name || m.memberTier?.name || m.memberTier || 'N/A'
-            })));
-
-            filtered = filtered.filter(member => {
-                // Handle different possible data structures for tier
-                let memberTierName = '';
-                if (member.MemberTier?.Name) {
-                    memberTierName = member.MemberTier.Name;
-                } else if (member.memberTier?.name) {
-                    memberTierName = member.memberTier.name;
-                } else if (member.memberTier && typeof member.memberTier === 'string') {
-                    memberTierName = member.memberTier;
-                } else if (typeof member.MemberTier === 'string') {
-                    memberTierName = member.MemberTier;
-                }
-
-                // Convert both to lowercase for case-insensitive comparison
-                const tierMatch = memberTierName.toLowerCase() === selectedTier.toLowerCase();
-                console.log(`Member ${member.name || member.Name} tier: "${memberTierName}" vs filter: "${selectedTier}" = ${tierMatch}`);
-                return tierMatch;
-            });
-            console.log('After tier filter:', filtered.length);
         }
 
         // Status filter - only apply if value is not empty
@@ -473,14 +455,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('Final filtered members count:', filtered.length);
         filteredMembers = filtered;
-        
+
         // Update status filter options based on filtered data when using client-side filtering
-        // This ensures the status filter reflects the current data context
-        if (searchTerm || selectedTier) {
-            // If search or tier filter is applied, update status filter based on filtered results
+        if (searchTerm) {
+            // If search filter is applied, update status filter based on filtered results
             populateStatusFilterFromData(filtered);
         }
-        
+
         currentPage = 1;
         renderMembers();
     };
@@ -488,12 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enhanced applyFilters that uses API for better performance
     const applyFiltersWithAPI = async () => {
         const searchTerm = memberSearchInput.value.trim();
-        const selectedTier = tierFilter.value.trim();
         const selectedStatus = statusFilter.value.trim();
 
         console.log('Applying filters via API:', {
             search: searchTerm,
-            tier: selectedTier,
             status: selectedStatus
         });
 
@@ -501,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearSelection();
 
         // Use API filtering if any filter is applied
-        if (searchTerm || selectedTier || selectedStatus) {
+        if (searchTerm || selectedStatus) {
             await fetchMembers(true); // true = use filters
         } else {
             // If no filters, fetch all members and apply client-side filtering
@@ -562,11 +541,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="font-size: 12px; color: #7f8c8d;">${memberEmail || '-'}</div>
                     </td>
                     <td>
-                        <span class="member-tier-badge tier-${memberTierName?.toLowerCase() || 'bronze'}">
-                            ${memberTierName || 'Bronze'}
-                        </span>
-                    </td>
-                    <td>
                         <span class="points-display">${memberTotalPoints || 0} pts</span>
                     </td>
                     <td>${formatCurrency(memberTotalSpent || 0)}</td>
@@ -608,17 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const populateTierSelect = () => {
-        const tierSelect = document.getElementById('member-tier');
-
-        // Only populate if select is empty (not already populated by template)
-        if (tierSelect.options.length <= 1) {
-            memberTiers.forEach(tier => {
-                const option = document.createElement('option');
-                option.value = tier.ID || tier.id;
-                option.textContent = tier.Name || tier.name;
-                tierSelect.appendChild(option);
-            });
-        }
+        // No longer needed for tierless membership system
+        console.log('Tier system disabled - no tier population needed');
     };
 
     const populateStatusFilter = () => {
@@ -678,45 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('member-phone').value = member.Phone || member.phone || '';
             document.getElementById('member-email').value = member.Email || member.email || '';
 
-            // Set tier value - ensure we have the tiers populated first
-            const tierSelect = document.getElementById('member-tier');
-
-            // Debug logging
-            console.log('Member data received:', member);
-            console.log('Available tiers:', memberTiers);
-
-            // Get tier ID from member data - check multiple possible field names
-            let memberTierId = null;
-            if (member.MemberTier?.ID) {
-                memberTierId = member.MemberTier.ID;
-            } else if (member.MemberTierID) {
-                memberTierId = member.MemberTierID;
-            } else if (member.memberTier?.id) {
-                memberTierId = member.memberTier.id;
-            } else if (member.memberTierID) {
-                memberTierId = member.memberTierID;
-            }
-            
-            console.log('Member Tier ID:', memberTierId);
-
-            // Clear the select first
-            tierSelect.value = '';
-            
-            // Set the value if we have a valid tier ID
-            if (memberTierId && memberTierId !== 0) {
-                tierSelect.value = memberTierId;
-                console.log('Set tier select value to:', tierSelect.value);
-                
-                // Verify the value was set correctly
-                if (tierSelect.value !== String(memberTierId)) {
-                    console.warn('Failed to set tier select value. Available options:');
-                    for (let i = 0; i < tierSelect.options.length; i++) {
-                        console.warn(`Option ${i}: value="${tierSelect.options[i].value}", text="${tierSelect.options[i].text}"`);
-                    }
-                }
-            } else {
-                console.log('No tier ID found, leaving as default');
-            }
+            // No tier handling needed for tierless membership system
 
             // Set status value
             const status = member.Status || member.status || 'active';
@@ -765,9 +692,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update profile information
         document.getElementById('detail-member-name').textContent = member.Name || member.name || 'N/A';
         document.getElementById('detail-member-code').textContent = `Code: ${member.MemberCode || member.memberCode || 'N/A'}`;
-        const tierName = member.MemberTier?.Name || member.memberTier?.name || 'Bronze';
-        document.getElementById('detail-member-tier').textContent = tierName;
-        document.getElementById('detail-member-tier').className = `member-badge tier-${tierName.toLowerCase()}`;
 
         // Update statistics
         document.getElementById('detail-total-points').textContent = `${member.TotalPoints || member.totalPoints || 0} pts`;
@@ -837,14 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
     };
 
-    // --- Event Listeners ---
-    addMemberBtn.addEventListener('click', () => showMemberModal());
-
-    memberModalClose.addEventListener('click', hideMemberModal);
-    cancelMemberBtn.addEventListener('click', hideMemberModal);
-    detailsModalClose.addEventListener('click', hideMemberDetails);
-    closeDetailsBtn.addEventListener('click', hideMemberDetails);
-
+    
     // Event delegation for action buttons
     membersTableBody.addEventListener('click', (e) => {
         const button = e.target.closest('.btn-action');
@@ -865,53 +782,53 @@ document.addEventListener('DOMContentLoaded', () => {
     memberForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const tierId = document.getElementById('member-tier').value;
-        const memberData = {
-            name: document.getElementById('member-name').value.trim(),
-            phone: document.getElementById('member-phone').value.trim(),
-            email: document.getElementById('member-email').value.trim(),
-            address: document.getElementById('member-address').value.trim(),
-            birthday: document.getElementById('member-birthday').value,
-            gender: document.getElementById('member-gender').value,
-            status: document.getElementById('member-status').value,
-            notes: document.getElementById('member-notes').value.trim()
-        };
+        // Get form values
+        const name = document.getElementById('member-name').value.trim();
+        const phone = document.getElementById('member-phone').value.trim();
+        const email = document.getElementById('member-email').value.trim();
+        const address = document.getElementById('member-address').value.trim();
+        const birthday = document.getElementById('member-birthday').value;
+        const gender = document.getElementById('member-gender').value;
+        const status = document.getElementById('member-status').value;
+        const notes = document.getElementById('member-notes').value.trim();
 
-        // Handle tier ID properly - ensure it's sent as MemberTierID for backend compatibility
-        if (tierId && tierId !== '') {
-            memberData.MemberTierID = parseInt(tierId);
-        } else if (!editingMemberId) {
-            // For new members, don't send MemberTierID to let backend assign default
-            delete memberData.MemberTierID;
-        }
-
-        console.log('Tier ID from dropdown:', tierId);
-        console.log('Editing member ID:', editingMemberId);
-        console.log('Complete member data being sent:', JSON.stringify(memberData, null, 2));
-
-        if (!memberData.name) {
+        // Validation
+        if (!name) {
             showError('Member name is required');
             return;
         }
 
-        if (!memberData.phone) {
+        if (!phone) {
             showError('Phone number is required');
             return;
         }
+
+        // Create member data object
+        const memberData = {
+            name: name,
+            phone: phone,
+            email: email,
+            address: address,
+            birthday: birthday,
+            gender: gender,
+            status: status,
+            notes: notes
+        };
+
+        console.log('Submitting member data:', memberData);
+        console.log('Editing member ID:', editingMemberId);
 
         saveMember(memberData);
     });
 
     // Search and filter listeners - use API-based filtering
     memberSearchInput.addEventListener('input', debounce(applyFiltersWithAPI, 300));
-    tierFilter.addEventListener('change', applyFiltersWithAPI);
     statusFilter.addEventListener('change', applyFiltersWithAPI);
 
     document.getElementById('btn-search').addEventListener('click', applyFiltersWithAPI);
     document.getElementById('clear-filters').addEventListener('click', () => {
         console.log('Clearing all filters');
         memberSearchInput.value = '';
-        tierFilter.value = '';
         statusFilter.value = '';
         clearSelection(); // Also clear any selections
         // Fetch all members without filters
@@ -1426,46 +1343,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initialization ---
     const initialize = async () => {
-        // Check if data is already server-rendered
-        const hasServerData = membersTableBody && membersTableBody.children.length > 0;
+        console.log('Initializing member management...');
 
-        if (hasServerData) {
-            console.log('Using server-rendered member data');
-            // Extract member data from server-rendered rows
-            const memberRows = membersTableBody.querySelectorAll('tr[data-member-id]');
-            members = Array.from(memberRows).map(row => {
-                const cells = row.cells;
-                const tierName = cells[3].querySelector('.member-tier-badge')?.textContent || 'Bronze';
-                const statusName = cells[7].querySelector('.status-badge')?.textContent || 'active';
+        // Show loading state
+        if (loadingState) loadingState.style.display = 'flex';
+        if (emptyState) emptyState.style.display = 'none';
 
-                return {
-                    id: row.getAttribute('data-member-id'),
-                    name: cells[1].querySelector('.member-name')?.textContent || '',
-                    memberCode: cells[1].querySelector('.member-code')?.textContent || '',
-                    phone: cells[2].querySelector('div')?.textContent || '',
-                    email: cells[2].querySelector('div[style*="color: #7f8c8d"]')?.textContent || '',
-                    memberTier: tierName, // Keep as string for filtering
-                    MemberTier: { Name: tierName }, // Also provide object structure
-                    totalPoints: parseInt(cells[4].textContent) || 0,
-                    totalSpent: parseFloat(cells[5].textContent.replace(/[^\d]/g, '')) || 0,
-                    joinedDate: cells[6].textContent || '',
-                    status: statusName.toLowerCase(), // Keep as lowercase for consistency
-                    Status: statusName // Also provide original case
-                };
-            });
-            filteredMembers = [...members];
-            updateStatistics();
-            populateStatusFilter(); // Populate status filter from existing data
-            hideLoading();
-            pagination.style.display = 'flex';
-            updatePagination();
-        } else {
-            console.log('Fetching member data from API');
-            await Promise.all([
-                fetchMembers(),
-                fetchMemberTiers()
-            ]);
+        // Always fetch fresh data from API regardless of server-rendered data
+        console.log('Fetching member data from API');
+        try {
+            await fetchMembers(false); // false = no filters, get all members
+        } catch (error) {
+            console.error('Failed to fetch members:', error);
+            if (loadingState) loadingState.style.display = 'none';
+            if (emptyState) emptyState.style.display = 'flex';
         }
+
+        // Set up event listeners
+        setupEventListeners();
+
+        console.log('Member management initialized');
+    };
+
+    const setupEventListeners = () => {
+        console.log('Setting up essential event listeners...');
+
+        // Clear filters button (this is the most important for the current issue)
+        const clearFiltersBtn = document.getElementById('clear-filters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                console.log('Clearing all filters');
+                if (memberSearchInput) memberSearchInput.value = '';
+                if (statusFilter) statusFilter.value = '';
+                clearSelection();
+                // Fetch all members without filters
+                fetchMembers(false);
+            });
+        }
+
+        // Add Member button
+        if (addMemberBtn) {
+            addMemberBtn.addEventListener('click', () => showMemberModal());
+        }
+
+        console.log('Essential event listeners set up');
     };
 
     // Debounce function to prevent too many API calls

@@ -17,8 +17,7 @@ type MemberService interface {
 	RedeemPoints(memberID uint, points int, description string) (domain.MemberTransaction, error)
 	GetMemberTransactions(memberID uint, limit int, offset int) ([]domain.MemberTransaction, error)
 	GetPointsBalance(memberID uint) (int, error)
-	UpdateMemberTier(memberID uint) (domain.Member, error)
-	GetMemberTiers(tokoID uint) ([]domain.MemberTier, error)
+	// UpdateMemberTier and GetMemberTiers removed - tierless membership system
 	AutoInactiveMembers(tokoID uint) error
 	ImportMembers(members []ImportMember, tokoID uint, skipDuplicates, updateExisting bool) (ImportMembersResponse, error)
 }
@@ -30,7 +29,6 @@ type ImportMember struct {
 	Address string `json:"address"`
 	Birthday string `json:"birthday"`
 	Gender  string `json:"gender"`
-	Tier    string `json:"tier"`
 	Status  string `json:"status"`
 	Notes   string `json:"notes"`
 }

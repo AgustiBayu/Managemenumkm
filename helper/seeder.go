@@ -171,7 +171,7 @@ func seedMembers(db *gorm.DB) {
 			Birthday:      "1990-01-15",
 			Gender:        "Male",
 			Notes:         "Pelanggan setia",
-			MemberTierID:  bronzeTier.ID,
+			// MemberTierID removed - tierless membership system
 			TotalPoints:   150,
 			TotalSpent:    2500000,
 			TotalTransactions: 15,
@@ -189,7 +189,7 @@ func seedMembers(db *gorm.DB) {
 			Birthday:      "1985-05-20",
 			Gender:        "Female",
 			Notes:         "Pelanggan premium",
-			MemberTierID:  bronzeTier.ID,
+			// MemberTierID removed - tierless membership system
 			TotalPoints:   750,
 			TotalSpent:    8000000,
 			TotalTransactions: 45,
@@ -207,7 +207,7 @@ func seedMembers(db *gorm.DB) {
 			Birthday:      "1992-08-10",
 			Gender:        "Male",
 			Notes:         "Pelanggan menengah",
-			MemberTierID:  bronzeTier.ID,
+			// MemberTierID removed - tierless membership system
 			TotalPoints:   320,
 			TotalSpent:    4500000,
 			TotalTransactions: 28,
@@ -225,7 +225,7 @@ func seedMembers(db *gorm.DB) {
 			Birthday:      "1988-12-25",
 			Gender:        "Female",
 			Notes:         "Pelanggan regular",
-			MemberTierID:  bronzeTier.ID,
+			// MemberTierID removed - tierless membership system
 			TotalPoints:   85,
 			TotalSpent:    1200000,
 			TotalTransactions: 12,
@@ -243,7 +243,7 @@ func seedMembers(db *gorm.DB) {
 			Birthday:      "1995-03-18",
 			Gender:        "Male",
 			Notes:         "Pelanggan baru",
-			MemberTierID:  bronzeTier.ID,
+			// MemberTierID removed - tierless membership system
 			TotalPoints:   25,
 			TotalSpent:    550000,
 			TotalTransactions: 6,

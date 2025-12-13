@@ -27,7 +27,6 @@ type MemberController interface {
 	GetMemberTransactions(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	GetPointsBalance(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	RedeemPoints(w http.ResponseWriter, r *http.Request, params httprouter.Params)
-	GetMemberTiers(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	ImportMembers(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 
 	// Web Interface Methods
@@ -90,9 +89,8 @@ func (controller *MemberControllerImpl) UpdateMember(w http.ResponseWriter, r *h
 		err = decoder.Decode(&request)
 		helper.PanicIfError(err)
 
-		// Debug logging to help troubleshoot tier update issues
+		// Debug logging
 		fmt.Printf("UpdateMember request for ID %d: %+v\n", memberID, request)
-		fmt.Printf("MemberTierID in request: %d\n", request.MemberTierID)
 
 		member, err := controller.MemberService.UpdateMember(uint(memberID), request)
 		if err != nil {
@@ -103,7 +101,6 @@ func (controller *MemberControllerImpl) UpdateMember(w http.ResponseWriter, r *h
 
 		// Debug logging for successful update
 		fmt.Printf("Successfully updated member: %+v\n", member)
-		fmt.Printf("Updated MemberTierID: %d\n", member.MemberTierID)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -381,23 +378,7 @@ func (controller *MemberControllerImpl) RedeemPoints(w http.ResponseWriter, r *h
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (controller *MemberControllerImpl) GetMemberTiers(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	if r.Method == http.MethodGet {
-		tokoID := uint(1) // Default tokoID for now
-
-		memberTiers, err := controller.MemberService.GetMemberTiers(tokoID)
-		if err != nil {
-			http.Error(w, "Failed to get member tiers: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(memberTiers)
-		return
-	}
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
+// GetMemberTiers removed - no longer needed with tierless membership system
 
 // ImportMembersRequest represents the request body for importing members
 type ImportMembersRequest struct {
@@ -500,13 +481,6 @@ func (controller *MemberControllerImpl) FindAll(w http.ResponseWriter, r *http.R
 		// Continue
 	}
 
-	// Get member tiers
-	memberTiers, err := controller.MemberService.GetMemberTiers(tokoID)
-	if err != nil {
-		// Continue without tiers if error
-		memberTiers = []domain.MemberTier{}
-	}
-
 	// Prepare member data for frontend (add calculated fields)
 	// Limit to first 50 members to avoid page loading issues
 	displayLimit := 50
@@ -533,7 +507,6 @@ func (controller *MemberControllerImpl) FindAll(w http.ResponseWriter, r *http.R
 			"isActive":          member.IsActive,
 			"joinedDate":        member.JoinedDate,
 			"lastVisitDate":     member.LastVisitDate,
-			"memberTier":        member.MemberTier,
 		}
 	}
 
@@ -541,7 +514,6 @@ func (controller *MemberControllerImpl) FindAll(w http.ResponseWriter, r *http.R
 	data := map[string]interface{}{
 		"title":   "Member Management",
 		"members": memberData,
-		"tiers":   memberTiers,
 		"page":    "members",
 	}
 
@@ -568,7 +540,6 @@ func (controller *MemberControllerImpl) Create(w http.ResponseWriter, r *http.Re
 		birthday := r.FormValue("birthday")
 		gender := r.FormValue("gender")
 		notes := r.FormValue("notes")
-		tierId := r.FormValue("tierId")
 
 		if name == "" || phone == "" {
 			http.Error(w, "Name and phone are required", http.StatusBadRequest)
@@ -593,11 +564,7 @@ func (controller *MemberControllerImpl) Create(w http.ResponseWriter, r *http.Re
 		if notes != "" {
 			member.Notes = notes
 		}
-		if tierId != "" {
-			if id, err := strconv.ParseUint(tierId, 10, 32); err == nil {
-				member.MemberTierID = uint(id)
-			}
-		}
+		// No tier assignment needed - all members are now standard
 
 		savedMember, err := controller.MemberService.CreateMember(member)
 		if err != nil {
@@ -649,7 +616,6 @@ func (controller *MemberControllerImpl) Update(w http.ResponseWriter, r *http.Re
 		birthday := r.FormValue("birthday")
 		gender := r.FormValue("gender")
 		notes := r.FormValue("notes")
-		tierId := r.FormValue("tierId")
 
 		if name == "" || phone == "" {
 			http.Error(w, "Name and phone are required", http.StatusBadRequest)
@@ -673,11 +639,7 @@ func (controller *MemberControllerImpl) Update(w http.ResponseWriter, r *http.Re
 		if notes != "" {
 			member.Notes = notes
 		}
-		if tierId != "" {
-			if id, err := strconv.ParseUint(tierId, 10, 32); err == nil {
-				member.MemberTierID = uint(id)
-			}
-		}
+		// No tier assignment needed - all members are now standard
 
 		updatedMember, err := controller.MemberService.UpdateMember(uint(memberID), member)
 		if err != nil {

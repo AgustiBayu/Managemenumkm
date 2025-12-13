@@ -160,7 +160,7 @@ func (s *checkoutServiceImpl) ProcessCheckout(ctx context.Context, request *Chec
 				ID:             member.ID,
 				Name:           member.Name,
 				MemberCode:     member.MemberCode,
-				Tier:           member.MemberTier.Name,
+				Tier: "Standard",
 				PointsBalance:  member.TotalPoints,
 				PointsRedeemed: request.PointsToRedeem,
 			}
@@ -251,9 +251,10 @@ func (s *checkoutServiceImpl) calculateOrderSummaryInternal(ctx context.Context,
 	// Apply points redemption
 	pointsDiscount := 0.0
 	if request.PointsToRedeem > 0 && request.MemberID != nil {
-		member, err := s.memberRepo.FindByID(*request.MemberID)
+		// Check if member exists before redeeming points
+		_, err := s.memberRepo.FindByID(*request.MemberID)
 		if err == nil {
-			pointsValue, err := s.pointsService.CalculatePointsValue(ctx, request.PointsToRedeem, member.MemberTier.Name)
+			pointsValue, err := s.pointsService.CalculatePointsValue(ctx, request.PointsToRedeem, "Standard")
 			if err == nil {
 				pointsDiscount = pointsValue
 			}
@@ -315,7 +316,7 @@ func (s *checkoutServiceImpl) RedeemPoints(ctx context.Context, memberID uint, p
 	}
 
 	// Calculate discount amount
-	discountAmount, err := s.pointsService.CalculatePointsValue(ctx, pointsToRedeem, member.MemberTier.Name)
+	discountAmount, err := s.pointsService.CalculatePointsValue(ctx, pointsToRedeem, "Standard")
 	if err != nil {
 		return nil, err
 	}

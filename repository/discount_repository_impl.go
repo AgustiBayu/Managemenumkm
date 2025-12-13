@@ -34,7 +34,7 @@ func (r *DiscountRepositoryImpl) FindByID(discountID uint) (domain.Discount, err
 	var discount domain.Discount
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		First(&discount, discountID).Error
 	return discount, err
 }
@@ -43,7 +43,7 @@ func (r *DiscountRepositoryImpl) FindByTokoID(tokoID uint) ([]domain.Discount, e
 	var discounts []domain.Discount
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ?", tokoID).
 		Order("created_at DESC").
 		Find(&discounts).Error
@@ -55,7 +55,7 @@ func (r *DiscountRepositoryImpl) FindActiveDiscounts(tokoID uint) ([]domain.Disc
 	var discounts []domain.Discount
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ? AND is_active = ?", tokoID, true).
 		Order("created_at DESC").
 		Find(&discounts).Error
@@ -66,7 +66,7 @@ func (r *DiscountRepositoryImpl) FindValidDiscounts(tokoID uint, currentDate tim
 	var discounts []domain.Discount
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ? AND is_active = ? AND start_date <= ? AND end_date >= ? AND (usage_limit = 0 OR usage_count < usage_limit)",
 			tokoID, true, currentDate, currentDate).
 		Order("created_at DESC").
@@ -78,7 +78,7 @@ func (r *DiscountRepositoryImpl) FindWithFilter(filter domain.DiscountFilter) ([
 	var discounts []domain.Discount
 	query := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ?", filter.TokoID)
 
 	if filter.Type != "" {
@@ -203,7 +203,7 @@ func (r *DiscountRepositoryImpl) FindProductDiscounts(productID uint, tokoID uin
 	currentTime := time.Now()
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ? AND is_active = ? AND start_date <= ? AND end_date >= ? AND (usage_limit = 0 OR usage_count < usage_limit) AND (applicable_to = 'ALL' OR applicable_to = 'PRODUCT' AND product_id = ?)",
 			tokoID, true, currentTime, currentTime, productID).
 		Find(&discounts).Error
@@ -215,7 +215,7 @@ func (r *DiscountRepositoryImpl) FindCategoryDiscounts(categoryID uint, tokoID u
 	currentTime := time.Now()
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ? AND is_active = ? AND start_date <= ? AND end_date >= ? AND (usage_limit = 0 OR usage_count < usage_limit) AND (applicable_to = 'ALL' OR applicable_to = 'CATEGORY' AND category_id = ?)",
 			tokoID, true, currentTime, currentTime, categoryID).
 		Find(&discounts).Error
@@ -227,7 +227,7 @@ func (r *DiscountRepositoryImpl) FindMemberTierDiscounts(memberTierID uint, toko
 	currentTime := time.Now()
 	err := r.DB.Preload("Product").
 		Preload("Category").
-		Preload("MemberTier").
+		// MemberTier preload removed - tierless membership system
 		Where("toko_id = ? AND is_active = ? AND start_date <= ? AND end_date >= ? AND (usage_limit = 0 OR usage_count < usage_limit) AND (applicable_to = 'ALL' OR applicable_to = 'MEMBER_TIER' AND member_tier_id = ?)",
 			tokoID, true, currentTime, currentTime, memberTierID).
 		Find(&discounts).Error

@@ -87,7 +87,7 @@ func (controller *PosEnhancedControllerImpl) SearchMember(w http.ResponseWriter,
 		"name":           member.Name,
 		"email":          member.Email,
 		"phone":          member.Phone,
-		"tier":           member.MemberTier.Name,
+		"tier":           "Standard",
 		"points_balance": member.TotalPoints,
 		"total_spent":    member.TotalSpent,
 	}
@@ -113,7 +113,7 @@ func (controller *PosEnhancedControllerImpl) GetMemberPoints(w http.ResponseWrit
 	}
 
 	// Calculate points value
-	pointsValue, err := controller.PointsService.CalculatePointsValue(r.Context(), member.TotalPoints, member.MemberTier.Name)
+	pointsValue, err := controller.PointsService.CalculatePointsValue(r.Context(), member.TotalPoints, "Standard")
 	if err != nil {
 		pointsValue = 0
 	}
@@ -122,7 +122,7 @@ func (controller *PosEnhancedControllerImpl) GetMemberPoints(w http.ResponseWrit
 		"member_id":      member.ID,
 		"member_code":    member.MemberCode,
 		"name":           member.Name,
-		"tier":           member.MemberTier.Name,
+		"tier":           "Standard",
 		"points_balance": member.TotalPoints,
 		"points_value":   pointsValue,
 		"total_spent":    member.TotalSpent,

@@ -76,24 +76,15 @@ func (s *discountServiceImpl) ValidateDiscount(ctx context.Context, discountID u
 		}, nil
 	}
 
-	// Get member if applicable
-	var member domain.Member
+	// Check if member exists (for validation)
 	if memberID != 0 {
-		member, err = s.memberRepo.FindByID(memberID)
+		_, err = s.memberRepo.FindByID(memberID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Check member tier restriction
-	if discount.MemberTierID != nil && memberID != 0 {
-		if member.MemberTierID != *discount.MemberTierID {
-			return &DiscountValidationResult{
-				IsValid:      false,
-				ErrorMessage: "This discount is not available for your membership tier",
-			}, nil
-		}
-	}
+	// Member tier restrictions removed - all members can now use all discounts
 
 	// Check minimum purchase requirement
 	if discount.MinPurchase > 0 && cartTotal < discount.MinPurchase {
@@ -242,6 +233,12 @@ func (s *discountServiceImpl) Create(tokoID uint, request domain.DiscountCreateR
 }
 
 func (s *discountServiceImpl) Update(request domain.DiscountUpdateRequest) (domain.Discount, error) {
+	// First, get the existing discount to preserve TokoID and other fields
+	existingDiscount, err := s.discountRepo.FindByID(request.ID)
+	if err != nil {
+		return domain.Discount{}, fmt.Errorf("discount not found: %w", err)
+	}
+
 	// Parse dates
 	startDate, err := time.Parse("2006-01-02", request.StartDate)
 	if err != nil {
@@ -258,8 +255,10 @@ func (s *discountServiceImpl) Update(request domain.DiscountUpdateRequest) (doma
 		return domain.Discount{}, fmt.Errorf("end date must be after start date")
 	}
 
+	// Update discount with preserved TokoID and other fields
 	discount := domain.Discount{
 		ID:                  request.ID,
+		TokoID:              existingDiscount.TokoID, // Preserve existing TokoID
 		Name:                request.Name,
 		Description:         request.Description,
 		Type:                request.Type,
@@ -277,8 +276,10 @@ func (s *discountServiceImpl) Update(request domain.DiscountUpdateRequest) (doma
 		StartDate:           startDate,
 		EndDate:             endDate,
 		UsageLimit:          request.UsageLimit,
+		UsageCount:          existingDiscount.UsageCount, // Preserve existing usage count
 		IsStackable:         request.IsStackable,
 		IsActive:            request.IsActive,
+		CreatedAt:           existingDiscount.CreatedAt, // Preserve creation timestamp
 	}
 
 	return s.discountRepo.Update(discount)
@@ -309,12 +310,7 @@ func (s *discountServiceImpl) isDiscountApplicable(discount *domain.Discount, me
 		return false
 	}
 
-	// Check member tier restriction
-	if discount.MemberTierID != nil && member != nil {
-		if member.MemberTierID != *discount.MemberTierID {
-			return false
-		}
-	}
+	// Member tier restrictions removed - all members can now use all discounts
 
 	// Check minimum purchase
 	if discount.MinPurchase > 0 && cartTotal < discount.MinPurchase {

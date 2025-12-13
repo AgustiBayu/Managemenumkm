@@ -85,7 +85,7 @@ func NewRouter(userController controller.UserController, tokoController controll
 	// --- Member Management ---
 	router.POST("/api/members", middleware.Authorize(memberController.CreateMember, authAll...))
 	router.GET("/api/members", middleware.Authorize(memberController.GetMembersAPI, authAll...))
-	router.GET("/api/member-tiers", middleware.Authorize(memberController.GetMemberTiers, authAll...))
+	// Member tier routes removed - tierless membership system
 	router.POST("/api/members/import", middleware.Authorize(memberController.ImportMembers, authAll...))
 
 	// Member CRUD operations with ID parameter (specific routes first to avoid conflicts)

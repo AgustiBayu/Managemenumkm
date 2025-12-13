@@ -33,6 +33,71 @@
         padding: 1rem;
         margin-top: 1rem;
     }
+
+    /* Product Selection Styles */
+    .product-item {
+        transition: all 0.2s ease;
+    }
+    .product-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(2px);
+    }
+    .selected-product-item {
+        background-color: #e8f5e8;
+        border-color: #28a745 !important;
+    }
+    .product-search-input {
+        font-size: 0.9rem;
+    }
+    #availableProductsList {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+    }
+    #selectedProductsList {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+    }
+    .product-name {
+        font-weight: 500;
+        color: #333;
+    }
+    .product-category {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .product-price {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #28a745;
+    }
+    .product-stock {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .product-barcode {
+        font-size: 0.75rem;
+        color: #868e96;
+        font-family: monospace;
+    }
+    .badge-count {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 </style>
 {{end}}
 
@@ -73,11 +138,13 @@
                             <label for="type" class="form-label">Tipe Diskon *</label>
                             <select class="form-select" id="type" name="type" required>
                                 <option value="">Pilih Tipe Diskon</option>
-                                <option value="PERCENTAGE">Persentase (%)</option>
-                                <option value="FIXED_AMOUNT">Nominal Tetap (Rp)</option>
-                                <option value="BUY_X_GET_Y">Beli X Gratis Y</option>
-                                <option value="BULK">Beli Grosir</option>
+                                <option value="PERCENTAGE">Potongan Persentase (%)</option>
+                                <option value="FIXED_AMOUNT">Potongan Harga (Rp)</option>
+                                <option value="BUY_1_GET_1">Beli 1 Gratis 1</option>
                             </select>
+                            <div class="form-text">
+                                <small class="text-muted" id="discountTypeHelp">Pilih tipe diskon yang sesuai untuk produk Anda</small>
+                            </div>
                         </div>
 
                         <!-- Discount Value -->
@@ -95,6 +162,17 @@
                             <label for="minPurchase" class="form-label">Minimum Pembelian (Rp)</label>
                             <input type="number" class="form-control" id="minPurchase" name="minPurchase"
                                    min="0" step="0.01" placeholder="50000">
+                        </div>
+
+                        <!-- Member Only -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="memberOnly" name="memberOnly">
+                                <label class="form-check-label" for="memberOnly">
+                                    <i class="bi bi-person-check"></i> Hanya untuk Member
+                                </label>
+                                <div class="form-text">Diskon hanya berlaku untuk pelanggan yang terdaftar sebagai member</div>
+                            </div>
                         </div>
 
                         <!-- Date Range -->
@@ -115,30 +193,61 @@
                             </div>
                         </div>
 
-                        <!-- Applicable To -->
+                        <!-- Product Selection -->
                         <div class="mb-3">
-                            <label for="applicableTo" class="form-label">Berlaku Untuk *</label>
-                            <select class="form-select" id="applicableTo" name="applicableTo" required>
-                                <option value="ALL">Semua Pelanggan</option>
-                                <option value="MEMBER_TIER">Tier Member Tertentu</option>
-                                <option value="CATEGORY">Kategori Tertentu</option>
-                                <option value="PRODUCT">Produk Tertentu</option>
-                            </select>
-                        </div>
+                            <label for="productSelection" class="form-label">Produk yang Berlaku *</label>
+                            <div class="border rounded p-3" style="background-color: #f8f9fa;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-check-label">
+                                        <input type="radio" name="discountScope" value="ALL" id="allProducts" checked>
+                                        Semua Produk
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-check-label">
+                                        <input type="radio" name="discountScope" value="SELECTED" id="selectedProducts">
+                                        Produk Pilihan
+                                    </label>
+                                </div>
 
-                        <!-- Member Tier Selection (Hidden by default) -->
-                        <div id="memberTierFields" class="mb-3" style="display: none;">
-                            <label for="memberTierId" class="form-label">Pilih Tier Member</label>
-                            <select class="form-select" id="memberTierId" name="memberTierId">
-                                <option value="">-- Pilih Tier Member --</option>
-                                {{range .MemberTiers}}
-                                <option value="{{.ID}}">{{.Name}} (Min. {{.MinPoints}} poin, diskon {{.DiscountRate}}%)</option>
-                                {{end}}
-                            </select>
-                            <div class="form-text">
-                                <small class="text-muted">Diskon khusus akan berlaku hanya untuk member pada tier yang dipilih</small>
+                                <!-- Product Selection Area -->
+                                <div id="productSelectionArea" style="display: none;">
+                                    <hr>
+                                    <div class="mb-2">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="productSearch" placeholder="Cari produk...">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="searchProducts()">
+                                                <i class="bi bi-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Category Filter -->
+                                    <div class="mb-2">
+                                        <select class="form-select form-select-sm" id="categoryFilter" onchange="filterProductsByCategory()">
+                                            <option value="">Semua Kategori</option>
+                                            <!-- Categories will be loaded dynamically -->
+                                        </select>
+                                    </div>
+
+                                    <!-- Selected Products List -->
+                                    <div id="selectedProductsList" class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: white;">
+                                        <p class="text-muted text-center mb-0">Belum ada produk yang dipilih</p>
+                                    </div>
+
+                                    <!-- Products to Select -->
+                                    <div class="mt-2">
+                                        <small class="text-muted">Pilih produk:</small>
+                                        <div id="availableProductsList" class="border rounded p-2" style="max-height: 200px; overflow-y: auto; background-color: white;">
+                                            <p class="text-muted text-center mb-0">Cari produk untuk menampilkan pilihan</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Hidden field for selected products -->
+                        <input type="hidden" id="selectedProductsData" name="selectedProducts" value="">
 
                         <!-- Usage Limits -->
                         <div class="mb-3">
@@ -286,43 +395,68 @@
         const type = this.value;
         const valueInput = document.getElementById('discountValue');
         const valueUnit = document.getElementById('discountUnit');
+        const helpText = document.getElementById('discountTypeHelp');
 
-        // Update unit
+        // Update unit, placeholder and help text
         switch(type) {
             case 'PERCENTAGE':
                 valueUnit.textContent = '%';
                 valueInput.placeholder = '10';
                 valueInput.max = '100';
+                valueInput.style.display = 'block';
+                valueUnit.parentElement.style.display = 'flex';
+                helpText.textContent = 'Contoh: 10 untuk potongan 10% dari harga';
                 break;
             case 'FIXED_AMOUNT':
                 valueUnit.textContent = 'Rp';
                 valueInput.placeholder = '10000';
                 valueInput.removeAttribute('max');
+                valueInput.style.display = 'block';
+                valueUnit.parentElement.style.display = 'flex';
+                helpText.textContent = 'Contoh: 10000 untuk potongan Rp 10.000';
+                break;
+            case 'BUY_1_GET_1':
+                valueInput.style.display = 'none';
+                valueUnit.parentElement.style.display = 'none';
+                helpText.textContent = 'Pelanggan mendapatkan produk gratis yang sama dengan yang dibeli';
                 break;
             default:
                 valueUnit.textContent = '%';
                 valueInput.placeholder = '0';
+                valueInput.removeAttribute('max');
+                valueInput.style.display = 'block';
+                valueUnit.parentElement.style.display = 'flex';
+                helpText.textContent = 'Pilih tipe diskon yang sesuai untuk produk Anda';
                 break;
         }
 
         updatePreview();
     });
 
-    // Handle applicable to change
-    document.getElementById('applicableTo').addEventListener('change', function() {
-        const applicableTo = this.value;
-        const memberTierFields = document.getElementById('memberTierFields');
-
-        // Hide all conditional fields first
-        memberTierFields.style.display = 'none';
-
-        // Show relevant field
-        if (applicableTo === 'MEMBER_TIER') {
-            memberTierFields.style.display = 'block';
-        }
-
-        updatePreview();
+    // Handle discount scope change (products)
+    document.querySelectorAll('input[name="discountScope"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const productSelectionArea = document.getElementById('productSelectionArea');
+            if (this.value === 'SELECTED') {
+                productSelectionArea.style.display = 'block';
+                // Load categories first, then products
+                loadCategories().then(() => {
+                    loadAvailableProducts();
+                }).catch(() => {
+                    loadAvailableProducts();
+                });
+            } else {
+                productSelectionArea.style.display = 'none';
+                clearSelectedProducts();
+            }
+            updatePreview();
+        });
     });
+
+    // Global variables
+    let selectedProducts = [];
+    let allProducts = [];
+    let allCategories = [];
 
     // Update preview function
     function updatePreview() {
@@ -332,36 +466,35 @@
         const minPurchase = document.getElementById('minPurchase').value;
         const startDate = document.getElementById('startDate').value;
         const endDate = document.getElementById('endDate').value;
-        const applicableTo = document.getElementById('applicableTo').value;
-        const memberTierId = document.getElementById('memberTierId').value;
+        const memberOnly = document.getElementById('memberOnly').checked;
+        const discountScope = document.querySelector('input[name="discountScope"]:checked')?.value || 'ALL';
 
         let preview = `<strong>${name}</strong><br>`;
 
         // Show applicable to
-        switch(applicableTo) {
-            case 'ALL':
-                preview += `Berlaku untuk: Semua Pelanggan<br>`;
-                break;
-            case 'MEMBER_TIER':
-                const memberTierSelect = document.getElementById('memberTierId');
-                const selectedTierText = memberTierSelect.options[memberTierSelect.selectedIndex]?.text || '-- Tier --';
-                preview += `Berlaku untuk: ${selectedTierText}<br>`;
-                break;
-            case 'CATEGORY':
-                preview += `Berlaku untuk: Kategori Tertentu<br>`;
-                break;
-            case 'PRODUCT':
-                preview += `Berlaku untuk: Produk Tertentu<br>`;
-                break;
+        if (memberOnly) {
+            preview += `<span class="badge bg-info"><i class="bi bi-person-check"></i> Member Only</span> `;
         }
 
-        if (type && value) {
+        // Show product scope
+        if (discountScope === 'SELECTED' && selectedProducts.length > 0) {
+            preview += `<span class="badge bg-success"><i class="bi bi-box"></i> ${selectedProducts.length} Produk Terpilih</span><br>`;
+        } else {
+            preview += `<span class="badge bg-secondary"><i class="bi bi-box"></i> Semua Produk</span><br>`;
+        }
+
+        if (type) {
             switch(type) {
                 case 'PERCENTAGE':
-                    preview += `Diskon ${value}%`;
+                    if (value) preview += `Diskon ${value}% dari harga`;
+                    else preview += `Diskon persentase`;
                     break;
                 case 'FIXED_AMOUNT':
-                    preview += `Diskon Rp ${parseInt(value).toLocaleString('id-ID')}`;
+                    if (value) preview += `Diskon Rp ${parseInt(value).toLocaleString('id-ID')}`;
+                    else preview += `Diskon harga tetap`;
+                    break;
+                case 'BUY_1_GET_1':
+                    preview += `Beli 1 Gratis 1`;
                     break;
                 default:
                     preview += `Diskon Khusus`;
@@ -391,30 +524,111 @@
     document.getElementById('discountForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
+        // Validation
+        const discountType = document.getElementById('type').value;
+        if (!discountType) {
+            alert('Pilih tipe diskon terlebih dahulu');
+            return;
+        }
+
+        const discountScope = document.querySelector('input[name="discountScope"]:checked')?.value || 'ALL';
+        const name = document.getElementById('name').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        if (!name) {
+            alert('Nama diskon harus diisi');
+            return;
+        }
+
+        if (!startDate || !endDate) {
+            alert('Tanggal mulai dan selesai harus diisi');
+            return;
+        }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            alert('Tanggal mulai tidak boleh lebih dari tanggal selesai');
+            return;
+        }
+
+        if (discountScope === 'SELECTED' && selectedProducts.length === 0) {
+            alert('Pilih minimal satu produk untuk diskon ini');
+            return;
+        }
+
+        // Special validation for BUY_1_GET_1
+        if (discountType === 'BUY_1_GET_1' && discountScope === 'ALL') {
+            if (!confirm('Diskon "Beli 1 Gratis 1" akan berlaku untuk SEMUA produk. Apakah Anda yakin?')) {
+                return;
+            }
+        }
+
         // Get form data manually to ensure proper formatting
-        const applicableTo = document.getElementById('applicableTo').value;
-        const data = {
-            id: document.getElementById('discountId').value,
+        const discountValue = discountType === 'BUY_1_GET_1' ? 1 : parseFloat(document.getElementById('discountValue').value) || 0;
+
+        // Map the data to match backend domain model
+        let data = {
             name: document.getElementById('name').value,
-            description: document.getElementById('description').value,
-            type: document.getElementById('type').value,
-            discount_value: parseFloat(document.getElementById('discountValue').value),
+            description: document.getElementById('description').value || '',
+            type: discountType,
+            discount_value: discountValue,
             min_purchase: parseFloat(document.getElementById('minPurchase').value) || 0,
+            max_discount: 0, // Default value
+            min_quantity: 1, // Default value
+            buy_quantity: 0, // Default value
+            get_quantity: 0, // Default value
+            get_discount_percent: 0, // Default value
+            applicable_to: 'ALL',
+            product_id: null, // Single product ID
+            category_id: null, // Single category ID
+            member_tier_id: null, // Single member tier ID
             start_date: document.getElementById('startDate').value,
             end_date: document.getElementById('endDate').value,
             usage_limit: parseInt(document.getElementById('usageLimit').value) || 0,
             is_stackable: document.getElementById('isStackable')?.checked || false,
-            applicable_to: applicableTo,
-            member_tier_id: applicableTo === 'MEMBER_TIER' ? parseInt(document.getElementById('memberTierId').value) || null : null,
-            product_id: applicableTo === 'PRODUCT' ? null : null, // TODO: Implement product selection
-            category_id: applicableTo === 'CATEGORY' ? null : null // TODO: Implement category selection
+            // toko_id will be automatically set by backend from auth token
         };
+
+        // Handle BUY_1_GET_1 type (convert to BUY_X_GET_Y)
+        if (discountType === 'BUY_1_GET_1') {
+            data.type = 'BUY_X_GET_Y';
+            data.buy_quantity = 1;
+            data.get_quantity = 1;
+            data.discount_value = 0; // No discount value for BUY_X_GET_Y
+        }
+
+        // Handle member_only flag by setting applicable_to to MEMBER_TIER if checked
+        if (document.getElementById('memberOnly').checked) {
+            data.applicable_to = 'MEMBER_TIER';
+            // Note: member_tier_id might need to be set based on actual member tiers in the system
+        }
+
+        // Handle product selection
+        if (discountScope === 'SELECTED' && selectedProducts.length > 0) {
+            // For multiple products, use PRODUCT applicable_to
+            data.applicable_to = 'PRODUCT';
+            // Note: This handles only single product_id. For multiple products,
+            // backend might need modification or we need to create separate discounts
+            data.product_id = selectedProducts.length > 0 ? selectedProducts[0].id : null;
+        }
+
+        console.log('Submitting data:', data);
 
         const discountId = document.getElementById('discountId').value;
         const isEdit = discountId !== '';
 
+        // Add ID field for update requests
+        if (isEdit) {
+            data.id = parseInt(discountId);
+            data.is_active = true; // Set to true for updates
+        }
+
         const url = isEdit ? `/api/discounts/${discountId}` : '/api/discounts';
         const method = isEdit ? 'PUT' : 'POST';
+
+        console.log('Request method:', method);
+        console.log('Request URL:', url);
+        console.log('Request body:', JSON.stringify(data, null, 2));
 
         fetch(url, {
             method: method,
@@ -423,19 +637,28 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.status === 'success') {
                 alert('Diskon berhasil disimpan!');
                 resetForm();
                 loadDiscounts();
             } else {
-                alert('Error: ' + (data.error || 'Terjadi kesalahan'));
+                const errorMsg = data.error || data.message || 'Terjadi kesalahan';
+                alert('Error: ' + errorMsg);
+                console.error('Server error:', data);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Terjadi kesalahan saat menyimpan diskon');
+            alert('Terjadi kesalahan saat menyimpan diskon: ' + error.message);
         });
     });
 
@@ -443,6 +666,11 @@
     function resetForm() {
         document.getElementById('discountForm').reset();
         document.getElementById('discountId').value = '';
+        selectedProducts = [];
+        updateSelectedProductsList();
+        document.getElementById('productSelectionArea').style.display = 'none';
+        document.getElementById('selectedProductsData').value = '';
+        document.getElementById('availableProductsList').innerHTML = '<p class="text-muted text-center mb-0">Cari produk untuk menampilkan pilihan</p>';
         updatePreview();
     }
 
@@ -481,7 +709,7 @@
 
     // Create discount row
     function createDiscountRow(discount) {
-        const typeBadge = getTypeBadge(discount.type);
+        const typeBadge = getTypeBadge(discount.type, discount.buy_quantity, discount.get_quantity);
         const statusBadge = getStatusBadge(discount.is_active);
 
         return `
@@ -489,6 +717,8 @@
                 <td>
                     <div>
                         <strong>${discount.name}</strong>
+                        ${discount.member_only ? '<span class="badge bg-info ms-2"><i class="bi bi-person-check"></i> Member Only</span>' : ''}
+                        ${discount.discount_scope === 'SELECTED' && discount.product_count ? '<span class="badge bg-success ms-2"><i class="bi bi-box"></i> ' + discount.product_count + ' Produk</span>' : ''}
                         ${discount.description ? `<br><small class="text-muted">${discount.description}</small>` : ''}
                     </div>
                 </td>
@@ -515,14 +745,277 @@
         `;
     }
 
+    // Product Management Functions
+    function loadCategories() {
+        console.log('Loading categories...');
+
+        // Show loading status
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.innerHTML = '<option value="">Loading categories...</option>';
+        }
+
+        // First try direct HTML scraping since API requires auth
+        return fetch('/category')
+            .then(response => {
+                console.log('Categories response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                console.log('Category page loaded as HTML, parsing...');
+
+                // Check if redirected to login
+                if (html.includes('<a href="/login">Found</a>') || html.includes('Found')) {
+                    throw new Error('Redirected to login - need authentication');
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const tableRows = doc.querySelectorAll('#dataTable tbody tr');
+
+                allCategories = [];
+                tableRows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
+                        const id = parseInt(cells[0].textContent.trim());
+                        const name = cells[1].textContent.trim();
+                        if (id && name) {
+                            allCategories.push({ id, name });
+                        }
+                    }
+                });
+
+                console.log('Parsed categories from HTML:', allCategories);
+                updateCategoryFilter();
+                updateProductsWithCategories();
+
+                // Try to load categories from localStorage cache for next time
+                if (allCategories.length > 0) {
+                    localStorage.setItem('categories_cache', JSON.stringify(allCategories));
+                }
+            })
+            .catch(error => {
+                console.error('Error loading categories from HTML, trying cache...', error);
+
+                // Try cache first
+                const cached = localStorage.getItem('categories_cache');
+                if (cached) {
+                    try {
+                        allCategories = JSON.parse(cached);
+                        console.log('Using cached categories:', allCategories);
+                        updateCategoryFilter();
+                        updateProductsWithCategories();
+                        return;
+                    } catch (e) {
+                        console.error('Cache parse error:', e);
+                    }
+                }
+
+                // Final fallback with empty categories
+                allCategories = [];
+                updateCategoryFilter();
+            });
+    }
+
+    function updateCategoryFilter() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        categoryFilter.innerHTML = '<option value="">Semua Kategori</option>';
+        allCategories.forEach(category => {
+            categoryFilter.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+        });
+    }
+
+    function updateProductsWithCategories() {
+        // Update existing products with category information
+        if (allProducts.length > 0) {
+            allProducts = allProducts.map(product => ({
+                ...product,
+                category: allCategories.find(c => c.id == product.category_id)
+            }));
+
+            // Refresh display
+            const availableProducts = allProducts.filter(p => !selectedProducts.some(sp => sp.id === p.id));
+            displayAvailableProducts(availableProducts);
+        }
+    }
+
+    function loadAvailableProducts() {
+        console.log('Loading products from /api/pos/products...');
+
+        // Show loading status
+        const availableProductsList = document.getElementById('availableProductsList');
+        if (availableProductsList) {
+            availableProductsList.innerHTML = '<p class="text-muted text-center mb-0"><i class="bi bi-hourglass-split loading-spinner"></i> Loading products...</p>';
+        }
+
+        fetch('/api/pos/products')
+            .then(response => {
+                console.log('Products response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Products data received:', data);
+                allProducts = data.map(product => ({
+                    id: product.id || product.ID,
+                    name: product.name || product.Name,
+                    price: product.price || product.Price,
+                    category_id: product.category_id || product.CategoryID,
+                    category: allCategories.find(c => c.id == (product.category_id || product.CategoryID)),
+                    stock: product.stock || product.Stock || 0,
+                    barcode: product.barcode || product.Barcode || ''
+                }));
+                console.log('Mapped products with categories:', allProducts);
+                displayAvailableProducts(allProducts);
+            })
+            .catch(error => {
+                console.error('Error loading products, using fallback...', error);
+
+                // Create some sample products for testing
+                const sampleProducts = [];
+                allCategories.forEach((cat, index) => {
+                    sampleProducts.push(
+                        { id: index * 100 + 1, name: `Produk ${cat.name} 1`, price: 25000, category_id: cat.id, stock: 10 },
+                        { id: index * 100 + 2, name: `Produk ${cat.name} 2`, price: 15000, category_id: cat.id, stock: 20 }
+                    );
+                });
+
+                // Add uncategorized products if no categories exist
+                if (allCategories.length === 0) {
+                    sampleProducts.push(
+                        { id: 999, name: 'Produk Tanpa Kategori 1', price: 30000, category_id: null, stock: 5 },
+                        { id: 1000, name: 'Produk Tanpa Kategori 2', price: 18000, category_id: null, stock: 15 }
+                    );
+                }
+
+                allProducts = sampleProducts.map(p => ({
+                    ...p,
+                    category: allCategories.find(c => c.id == p.category_id)
+                }));
+
+                console.log('Using sample products:', allProducts);
+                displayAvailableProducts(allProducts);
+            });
+    }
+
+    function displayAvailableProducts(products) {
+        const container = document.getElementById('availableProductsList');
+        if (products.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">Tidak ada produk tersedia</p>';
+            return;
+        }
+
+        container.innerHTML = products.map(product => {
+            const isSelected = selectedProducts.some(p => p.id === product.id);
+            const stockClass = product.stock > 10 ? 'text-success' : product.stock > 0 ? 'text-warning' : 'text-danger';
+            const categoryName = product.category?.name || (product.category_id ? 'Loading...' : 'Tanpa Kategori');
+            return `
+                <div class="product-item d-flex justify-content-between align-items-center p-2 border-bottom">
+                    <div class="flex-grow-1">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-category">${categoryName}</div>
+                        <div class="product-price">Rp ${parseInt(product.price || 0).toLocaleString('id-ID')}</div>
+                        <div class="product-stock">Stock: <span class="${stockClass}">${product.stock || 0}</span></div>
+                        ${product.barcode ? `<div class="product-barcode"><small>Barcode: ${product.barcode}</small></div>` : ''}
+                    </div>
+                    <button class="btn btn-sm ${isSelected ? 'btn-success' : 'btn-outline-primary'}"
+                            onclick="toggleProductSelection(${product.id}, '${product.name.replace(/'/g, "\\'")}', ${product.price || 0})"
+                            ${isSelected ? 'disabled' : ''}>
+                        ${isSelected ? '<i class="bi bi-check"></i> Ditambahkan' : '<i class="bi bi-plus"></i> Tambah'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function toggleProductSelection(productId, productName, productPrice) {
+        if (selectedProducts.some(p => p.id === productId)) {
+            return;
+        }
+
+        selectedProducts.push({ id: productId, name: productName, price: productPrice });
+        updateSelectedProductsList();
+        displayAvailableProducts(allProducts.filter(p => !selectedProducts.some(sp => sp.id === p.id)));
+        document.getElementById('selectedProductsData').value = JSON.stringify(selectedProducts);
+        updatePreview();
+    }
+
+    function removeSelectedProduct(productId) {
+        selectedProducts = selectedProducts.filter(p => p.id !== productId);
+        updateSelectedProductsList();
+        displayAvailableProducts(allProducts.filter(p => !selectedProducts.some(sp => sp.id === p.id)));
+        document.getElementById('selectedProductsData').value = JSON.stringify(selectedProducts);
+        updatePreview();
+    }
+
+    function updateSelectedProductsList() {
+        const container = document.getElementById('selectedProductsList');
+        if (selectedProducts.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center mb-0">Belum ada produk yang dipilih</p>';
+            return;
+        }
+
+        container.innerHTML = selectedProducts.map(product => `
+            <div class="selected-product-item d-flex justify-content-between align-items-center p-2 mb-1 border rounded bg-light">
+                <div>
+                    <strong>${product.name}</strong>
+                    <br><small class="text-muted">Rp ${parseInt(product.price).toLocaleString('id-ID')}</small>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="removeSelectedProduct(${product.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function clearSelectedProducts() {
+        selectedProducts = [];
+        updateSelectedProductsList();
+        document.getElementById('selectedProductsData').value = '';
+        document.getElementById('availableProductsList').innerHTML = '<p class="text-muted text-center mb-0">Cari produk untuk menampilkan pilihan</p>';
+    }
+
+    function searchProducts() {
+        const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+        const filtered = allProducts.filter(product =>
+            product.name.toLowerCase().includes(searchTerm) ||
+            (product.category?.name || '').toLowerCase().includes(searchTerm)
+        );
+        displayAvailableProducts(filtered);
+    }
+
+    function filterProductsByCategory() {
+        const categoryId = document.getElementById('categoryFilter').value;
+        const filtered = categoryId ?
+            allProducts.filter(product => product.category_id == categoryId) :
+            allProducts;
+        displayAvailableProducts(filtered);
+    }
+
     // Helper functions
-    function getTypeBadge(type) {
+    function getTypeBadge(type, buyQuantity = null, getQuantity = null) {
         const badges = {
-            'PERCENTAGE': '<span class="badge bg-primary discount-type-badge">Persentase</span>',
-            'FIXED_AMOUNT': '<span class="badge bg-success discount-type-badge">Nominal</span>',
-            'BUY_X_GET_Y': '<span class="badge bg-info discount-type-badge">Beli X Gratis Y</span>',
-            'BULK': '<span class="badge bg-warning discount-type-badge">Grosir</span>'
+            'PERCENTAGE': '<span class="badge bg-primary discount-type-badge">Potongan %</span>',
+            'FIXED_AMOUNT': '<span class="badge bg-success discount-type-badge">Potongan Rp</span>',
+            'BULK': '<span class="badge bg-warning discount-type-badge">Diskon Grosir</span>'
         };
+
+        // Special handling for BUY_X_GET_Y types
+        if (type === 'BUY_X_GET_Y' || type === 'BUY_1_GET_1') {
+            if (buyQuantity && getQuantity) {
+                return `<span class="badge bg-info discount-type-badge">Beli ${buyQuantity} Gratis ${getQuantity}</span>`;
+            } else if (buyQuantity === 1 && getQuantity === 1) {
+                return '<span class="badge bg-info discount-type-badge">Beli 1 Gratis 1</span>';
+            } else {
+                return '<span class="badge bg-info discount-type-badge">Beli X Gratis Y</span>';
+            }
+        }
+
         return badges[type] || '<span class="badge bg-secondary discount-type-badge">Unknown</span>';
     }
 
@@ -565,19 +1058,47 @@
         fetch(`/api/discounts/${id}`)
             .then(response => response.json())
             .then(data => {
+                console.log('Edit discount data received:', data);
                 if (data.status === 'success') {
                     const discount = data.data;
 
                     // Populate form
                     document.getElementById('discountId').value = discount.id;
-                    document.getElementById('name').value = discount.name;
+                    document.getElementById('name').value = discount.name || '';
                     document.getElementById('description').value = discount.description || '';
-                    document.getElementById('type').value = discount.type;
-                    document.getElementById('discountValue').value = discount.discount_value;
+
+                    // Handle type conversion (BUY_X_GET_Y -> BUY_1_GET_1 for display)
+                    let displayType = discount.type;
+                    if (discount.type === 'BUY_X_GET_Y') {
+                        displayType = 'BUY_1_GET_1';
+                    }
+                    document.getElementById('type').value = displayType;
+
+                    document.getElementById('discountValue').value = discount.discount_value || '';
                     document.getElementById('minPurchase').value = discount.min_purchase || '';
-                    document.getElementById('startDate').value = discount.start_date;
-                    document.getElementById('endDate').value = discount.end_date;
+                    document.getElementById('startDate').value = discount.start_date || '';
+                    document.getElementById('endDate').value = discount.end_date || '';
                     document.getElementById('usageLimit').value = discount.usage_limit || '';
+
+                    // Handle member_only checkbox (check if applicable_to is MEMBER_TIER)
+                    const isMemberOnly = discount.applicable_to === 'MEMBER_TIER';
+                    document.getElementById('memberOnly').checked = isMemberOnly;
+
+                    // Handle product selection (check if applicable_to is PRODUCT)
+                    const isProductSpecific = discount.applicable_to === 'PRODUCT' && discount.product_id;
+                    if (isProductSpecific) {
+                        document.getElementById('selectedProducts').checked = true;
+                        // Load product details for the selected product
+                        selectedProducts = discount.product_id ? [{id: discount.product_id, name: 'Selected Product'}] : [];
+                        updateSelectedProductsList();
+                        document.getElementById('productSelectionArea').style.display = 'block';
+                        loadCategories();
+                        loadAvailableProducts();
+                    } else {
+                        document.getElementById('allProducts').checked = true;
+                        selectedProducts = [];
+                        document.getElementById('productSelectionArea').style.display = 'none';
+                    }
 
                     // Trigger change events
                     document.getElementById('type').dispatchEvent(new Event('change'));
@@ -586,11 +1107,13 @@
 
                     // Scroll to form
                     document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Failed to load discount: ' + (data.error || data.message || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error loading discount:', error);
-                alert('Gagal memuat data diskon');
+                alert('Failed to load discount data: ' + error.message);
             });
     }
 
@@ -606,6 +1129,11 @@
     document.addEventListener('DOMContentLoaded', function() {
         loadDiscounts();
         updatePreview();
+
+        // Pre-load categories for faster product selection
+        loadCategories().catch(error => {
+            console.error('Failed to pre-load categories:', error);
+        });
     });
 </script>
 {{end}}

@@ -15,8 +15,6 @@ type Member struct {
 	Birthday          string     `gorm:"size:10"` // Format: YYYY-MM-DD
 	Gender            string     `gorm:"size:10"` // Male, Female, Other
 	Notes             string     `gorm:"size:500"`
-	MemberTierID      uint       `gorm:"not null"`
-	MemberTier        MemberTier `gorm:"foreignKey:MemberTierID"`
 	TotalPoints       int        `gorm:"default:0"`
 	TotalSpent        float64    `gorm:"default:0"`              // Total amount spent historically
 	TotalTransactions int        `gorm:"default:0"`              // Total number of transactions

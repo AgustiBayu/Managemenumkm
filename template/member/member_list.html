@@ -2,6 +2,7 @@
 
 {{define "css"}}
 <link rel="stylesheet" href="/static/css/member.css">
+<link rel="stylesheet" href="/static/css/bootstrap-icons.css">
 {{end}}
 
 {{define "content"}}
@@ -25,42 +26,6 @@
 
     <!-- Statistics Cards -->
     <div class="member-stats">
-        <div class="stat-card bronze">
-            <div class="stat-icon">
-                <i class="bi bi-award-fill"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-number" id="bronze-count">0</div>
-                <div class="stat-label">Bronze Members</div>
-            </div>
-        </div>
-        <div class="stat-card silver">
-            <div class="stat-icon">
-                <i class="bi bi-award"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-number" id="silver-count">0</div>
-                <div class="stat-label">Silver Members</div>
-            </div>
-        </div>
-        <div class="stat-card gold">
-            <div class="stat-icon">
-                <i class="bi bi-trophy-fill"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-number" id="gold-count">0</div>
-                <div class="stat-label">Gold Members</div>
-            </div>
-        </div>
-        <div class="stat-card platinum">
-            <div class="stat-icon">
-                <i class="bi bi-gem"></i>
-            </div>
-            <div class="stat-info">
-                <div class="stat-number" id="platinum-count">0</div>
-                <div class="stat-label">Platinum Members</div>
-            </div>
-        </div>
         <div class="stat-card total">
             <div class="stat-icon">
                 <i class="bi bi-people-fill"></i>
@@ -68,6 +33,33 @@
             <div class="stat-info">
                 <div class="stat-number" id="total-members">0</div>
                 <div class="stat-label">Total Members</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-star-fill"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-number" id="active-members">0</div>
+                <div class="stat-label">Active Members</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-number" id="new-members">0</div>
+                <div class="stat-label">New This Month</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-coins"></i>
+            </div>
+            <div class="stat-info">
+                <div class="stat-number" id="total-points">0</div>
+                <div class="stat-label">Total Points</div>
             </div>
         </div>
     </div>
@@ -84,14 +76,10 @@
             </div>
         </div>
         <div class="filter-controls">
-            <select id="tier-filter" class="filter-select">
-                <option value="">All Tiers</option>
-                {{range .tiers}}
-                <option value="{{.Name}}">{{.Name}}</option>
-                {{end}}
-            </select>
             <select id="status-filter" class="filter-select">
                 <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
             </select>
             <button class="btn btn-outline" id="clear-filters">
                 <i class="bi bi-arrow-clockwise"></i> Clear Filters
@@ -129,7 +117,6 @@
                         </th>
                         <th>Member Info</th>
                         <th>Contact</th>
-                        <th>Member Tier</th>
                         <th>Points</th>
                         <th>Total Spent</th>
                         <th>Join Date</th>
@@ -157,11 +144,6 @@
                             <div style="font-size: 12px; color: #7f8c8d;">{{.email}}</div>
                         </td>
                         <td>
-                            <span class="member-tier-badge tier-{{if .memberTier.Name}}{{lower .memberTier.Name}}{{else if .MemberTier.Name}}{{lower .MemberTier.Name}}{{else}}bronze{{end}}">
-                                {{if .memberTier.Name}}{{.memberTier.Name}}{{else if .MemberTier.Name}}{{.MemberTier.Name}}{{else}}Bronze{{end}}
-                            </span>
-                        </td>
-                        <td>
                             <span class="points-display">{{.totalPoints}} pts</span>
                         </td>
                         <td>Rp {{.totalSpent | printf "%.0f"}}</td>
@@ -187,7 +169,7 @@
                     </tr>
                     {{else}}
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px;">
+                        <td colspan="8" style="text-align: center; padding: 40px;">
                             <div class="empty-state">
                                 <i class="bi bi-people"></i>
                                 <h3>No Members Found</h3>
@@ -259,15 +241,6 @@
                         <input type="email" id="member-email" class="form-input" placeholder="optional@email.com">
                     </div>
                     <div class="form-group">
-                        <label>Member Tier</label>
-                        <select id="member-tier" class="form-input">
-                            <option value="">Auto Assign (Bronze)</option>
-                            {{range .tiers}}
-                            <option value="{{.ID}}">{{.Name}}</option>
-                            {{end}}
-                        </select>
-                    </div>
-                    <div class="form-group">
                         <label>Status</label>
                         <select id="member-status" class="form-input">
                             <option value="active">Active</option>
@@ -276,8 +249,8 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Address</label>
-                    <textarea id="member-address" class="form-input" rows="3" placeholder="Enter complete address"></textarea>
+                    <label>Notes</label>
+                    <textarea id="member-notes" class="form-input" rows="2" placeholder="Additional notes about this member"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -295,8 +268,8 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Notes</label>
-                    <textarea id="member-notes" class="form-input" rows="2" placeholder="Additional notes about this member"></textarea>
+                    <label>Address</label>
+                    <textarea id="member-address" class="form-input" rows="3" placeholder="Enter complete address"></textarea>
                 </div>
             </form>
         </div>
@@ -411,7 +384,7 @@
                         <div class="profile-info">
                             <h2 id="detail-member-name">Member Name</h2>
                             <p id="detail-member-code">Code: #XXXXX</p>
-                            <div class="member-badge" id="detail-member-tier">Bronze</div>
+                            <span class="member-badge">Active Member</span>
                         </div>
                         <div class="profile-actions">
                             <button class="btn btn-outline btn-sm" id="edit-member-btn">
@@ -440,6 +413,17 @@
                             <label>Member Since</label>
                             <span id="detail-join-date">-</span>
                         </div>
+                    </div>
+                    <div class="member-benefits" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                        <h5 style="margin: 0 0 10px 0; color: #1976d2; display: flex; align-items: center; gap: 8px;">
+                            <i class="bi bi-gift"></i> Member Benefits
+                        </h5>
+                        <ul style="margin: 0; padding-left: 20px; color: #333;">
+                            <li>Earn points on every purchase</li>
+                            <li>Exclusive member discounts</li>
+                            <li>Redeem points for rewards</li>
+                            <li>Special birthday offers</li>
+                        </ul>
                     </div>
                 </div>
 
